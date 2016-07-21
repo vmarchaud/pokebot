@@ -10,13 +10,17 @@ import com.pokegoapi.api.map.MapObjects;
 import com.pokegoapi.api.pokemon.Pokemon;
 import com.pokegoapi.auth.PTCLogin;
 import com.pokegoapi.exceptions.LoginFailedException;
+import com.pokegoapi.exceptions.RemoteServerException;
 import com.pokegoapi.google.common.geometry.S2LatLng;
+import com.pokegoapi.main.ServerRequest;
 
 import POGOProtos.Enums.PokemonIdOuterClass.PokemonId;
 import POGOProtos.Inventory.ItemIdOuterClass.ItemId;
 import POGOProtos.Map.Fort.FortDataOuterClass.FortData;
 import POGOProtos.Map.Pokemon.MapPokemonOuterClass.MapPokemon;
 import POGOProtos.Networking.Envelopes.RequestEnvelopeOuterClass;
+import POGOProtos.Networking.Requests.RequestTypeOuterClass.RequestType;
+import POGOProtos.Networking.Requests.Messages.PlayerUpdateMessageOuterClass;
 import POGOProtos.Networking.Responses.CatchPokemonResponseOuterClass.CatchPokemonResponse;
 import POGOProtos.Networking.Responses.EncounterResponseOuterClass.EncounterResponse;
 import POGOProtos.Networking.Responses.EncounterResponseOuterClass.EncounterResponse.Status;
@@ -30,12 +34,12 @@ public class Pokestop {
 
 	public static void main(String[] args) {
 		boolean pos = false;
-		while(true){
+		OkHttpClient http = new OkHttpClient();
+		while(true) {
 			pos = !pos;
-			OkHttpClient http = new OkHttpClient();
 			RequestEnvelopeOuterClass.RequestEnvelope.AuthInfo auth = null;
 			try {
-				auth = new PTCLogin(http).login("CrashkillerSmurf", "reeper47");
+				auth = new PTCLogin(http).login("thisismac42", "30101997");
 				go = new PokemonGo(auth, http);
 				if(pos)
 					go.setLocation(48.857445, 2.295771, 0);
@@ -46,14 +50,14 @@ public class Pokestop {
 				Collection<FortData> pokestops = mapObj.getPokestops();
 				getPokestops(pokestops);
 
-			} catch (LoginFailedException e) {
+			} catch (LoginFailedException | RemoteServerException e) {
 				// failed to login, invalid credentials or auth issue.
 				e.printStackTrace();
 			} 
 		}
 	}
 
-	public static void transfertAllPokermon(){
+	public static void transfertAllPokermon() throws LoginFailedException, RemoteServerException{
 		Map<PokemonId, Pokemon> pokemons = new HashMap<PokemonId, Pokemon>();
 		for(Pokemon pokemon : go.getPokebank().getPokemons()) {
 
@@ -70,7 +74,7 @@ public class Pokestop {
 		}
 	}
 
-	public static void getPokemons(Collection<MapPokemon> pokemons){
+	public static void getPokemons(Collection<MapPokemon> pokemons) throws LoginFailedException, RemoteServerException{
 		for(MapPokemon pokemon : pokemons){
 			EncounterResponse respondE = go.getMap().encounterPokemon(pokemon);
 
@@ -98,7 +102,7 @@ public class Pokestop {
 		}
 	}
 
-	public static void getPokestops(Collection<FortData> pokestops){
+	public static void getPokestops(Collection<FortData> pokestops) throws LoginFailedException, RemoteServerException{
 		System.out.println("Nombre de pokestops: " + pokestops.size());
 		int cpt = 0;
 		for(FortData pokestop : pokestops){
@@ -112,7 +116,7 @@ public class Pokestop {
 		transfertAllPokermon();
 	}
 
-	public static void run(double lat, double lon){
+	public static void run(double lat, double lon) throws LoginFailedException, RemoteServerException{
 		double firstLat = go.getLatitude();
 		double firstLon = go.getLongitude();
 		double dist = distance(lat, firstLat, lon, firstLon);
@@ -122,19 +126,17 @@ public class Pokestop {
 
 		System.out.println("Attente de " + timeInSec(dist, SPEED) + " s");
 		
-		for(int i = 0; i < sections; i++){
+		for(int i = 0; i < sections; i++) {
 			go.setLocation(firstLat + changeLat * sections, firstLon + changeLon * sections, 0);
+			PlayerUpdateMessageOuterClass.PlayerUpdateMessage request =  PlayerUpdateMessageOuterClass.PlayerUpdateMessage.newBuilder()
+            		.setLatitude(go.getLatitude()).setLongitude(go.getLongitude()).build();
+            
+			go.getRequestHandler().request(new ServerRequest(RequestType.PLAYER_UPDATE, request));
+			go.getRequestHandler().sendServerRequests();
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {}
 			
-			long timebefore = System.currentTimeMillis();
-			long time = System.currentTimeMillis() - timebefore;
-			if(time < 1000)
-			{
-				try {
-					Thread.sleep(1000 - time);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
 		}
 		go.setLocation(lat, lon, 0);
 		Collection<MapPokemon> pokemons = go.getMap().getMapObjects(go.getLatitude(), go.getLongitude()).getCatchablePokemons();
