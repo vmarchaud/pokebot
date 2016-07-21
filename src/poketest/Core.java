@@ -1,9 +1,7 @@
 package poketest;
 
-import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.InputStreamReader;
 import java.util.Random;
 
 import com.google.gson.Gson;
@@ -16,7 +14,7 @@ import com.pokegoapi.auth.PTCLogin;
 import com.pokegoapi.exceptions.LoginFailedException;
 import com.pokegoapi.exceptions.RemoteServerException;
 
-import POGOProtos.Networking.Envelopes.RequestEnvelopeOuterClass;
+import POGOProtos.Networking.Envelopes.RequestEnvelopeOuterClass.RequestEnvelope.AuthInfo;
 import okhttp3.OkHttpClient;
 
 public class Core {
@@ -30,7 +28,7 @@ public class Core {
 		
 		while(true) {
 			try {
-				RequestEnvelopeOuterClass.RequestEnvelope.AuthInfo auth = new PTCLogin(http).login(config.getUsername(), config.getPassword());
+				AuthInfo auth = new PTCLogin(http).login(config.getUsername(), config.getPassword());
 				PokemonGo go = new PokemonGo(auth, http);
 				System.out.println("Logged into pokemon go with fresh instance");
 				Location location = config.getSpawns().get(rand.nextInt(config.getSpawns().size()));
@@ -38,6 +36,7 @@ public class Core {
 				go.setLocation(location.getLattitude(), location.getLongitude(), 0);
 
 				System.out.println("Starting bot ..");
+				
 				new PokeBot(go);
 
 			} catch (LoginFailedException | RemoteServerException e) {
