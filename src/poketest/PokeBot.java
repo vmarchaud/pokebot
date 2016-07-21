@@ -7,6 +7,8 @@ import java.util.Map;
 import com.pokegoapi.api.PokemonGo;
 import com.pokegoapi.api.inventory.Bag;
 import com.pokegoapi.api.map.MapObjects;
+import com.pokegoapi.api.map.fort.Pokestop;
+import com.pokegoapi.api.map.fort.PokestopLootResult;
 import com.pokegoapi.api.pokemon.Pokemon;
 import com.pokegoapi.auth.PTCLogin;
 import com.pokegoapi.exceptions.LoginFailedException;
@@ -27,7 +29,7 @@ import POGOProtos.Networking.Responses.EncounterResponseOuterClass.EncounterResp
 import POGOProtos.Networking.Responses.FortSearchResponseOuterClass.FortSearchResponse;
 import okhttp3.OkHttpClient;
 
-public class Pokestop {
+public class PokeBot {
 
 	public static PokemonGo go;
 	public static final int SPEED = 10; // m/s
@@ -47,7 +49,7 @@ public class Pokestop {
 					go.setLocation(48.854989, 2.348024, 0);
 
 				MapObjects mapObj = go.getMap().getMapObjects(go.getLatitude(), go.getLongitude(), 3);
-				Collection<FortData> pokestops = mapObj.getPokestops();
+				Collection<Pokestop> pokestops = mapObj.getPokestops();
 				getPokestops(pokestops);
 
 			} catch (LoginFailedException | RemoteServerException e) {
@@ -102,15 +104,18 @@ public class Pokestop {
 		}
 	}
 
-	public static void getPokestops(Collection<FortData> pokestops) throws LoginFailedException, RemoteServerException{
+	public static void getPokestops(Collection<Pokestop> pokestops) throws LoginFailedException, RemoteServerException{
 		System.out.println("Nombre de pokestops: " + pokestops.size());
 		int cpt = 0;
-		for(FortData pokestop : pokestops){
+		for(Pokestop pokestop : pokestops) {
 			cpt++;
-			run(pokestop.getLatitude(), pokestop.getLongitude());
-			FortSearchResponse respond = go.getMap().searchFort(pokestop);
-			System.out.println("Pokestop " + cpt + "/" + pokestops.size() + " " + respond.getResult() + ", XP: " + respond.getExperienceAwarded());
-			if(cpt % 50 == 0)
+			if (!pokestop.canLoot())
+				run(pokestop.getLatitude(), pokestop.getLongitude());
+			
+			PokestopLootResult result = pokestop.loot();
+			getPokemons(go.getMap().getMapObjects(go.getLatitude(), go.getLongitude()).getCatchablePokemons());
+			System.out.println("Pokestop " + cpt + "/" + pokestops.size() + " " + result.getResult() + ", XP: " + result.getExperience());
+			if(cpt % (pokestops.size() / 2) == 0)
 				transfertAllPokermon();
 		}
 		transfertAllPokermon();
@@ -139,8 +144,6 @@ public class Pokestop {
 			
 		}
 		go.setLocation(lat, lon, 0);
-		Collection<MapPokemon> pokemons = go.getMap().getMapObjects(go.getLatitude(), go.getLongitude()).getCatchablePokemons();
-		getPokemons(pokemons);
 	}
 
 	public static double distance(double lat1, double lat2, double lon1, double lon2) {
