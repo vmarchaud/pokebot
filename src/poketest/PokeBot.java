@@ -1,7 +1,5 @@
 package poketest;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -18,23 +16,15 @@ import com.pokegoapi.api.map.Pokemon.EncounterResult;
 import com.pokegoapi.api.map.fort.Pokestop;
 import com.pokegoapi.api.map.fort.PokestopLootResult;
 import com.pokegoapi.api.pokemon.Pokemon;
-import com.pokegoapi.auth.PTCLogin;
 import com.pokegoapi.exceptions.LoginFailedException;
 import com.pokegoapi.exceptions.RemoteServerException;
-import com.pokegoapi.google.common.geometry.S2LatLng;
 import com.pokegoapi.main.ServerRequest;
 
 import POGOProtos.Enums.PokemonIdOuterClass.PokemonId;
 import POGOProtos.Inventory.ItemIdOuterClass.ItemId;
-import POGOProtos.Map.Fort.FortDataOuterClass.FortData;
-import POGOProtos.Map.Pokemon.MapPokemonOuterClass.MapPokemon;
-import POGOProtos.Networking.Envelopes.RequestEnvelopeOuterClass;
 import POGOProtos.Networking.Requests.RequestTypeOuterClass.RequestType;
 import POGOProtos.Networking.Requests.Messages.PlayerUpdateMessageOuterClass;
-import POGOProtos.Networking.Responses.CatchPokemonResponseOuterClass.CatchPokemonResponse;
-import POGOProtos.Networking.Responses.EncounterResponseOuterClass.EncounterResponse;
 import POGOProtos.Networking.Responses.EncounterResponseOuterClass.EncounterResponse.Status;
-import POGOProtos.Networking.Responses.FortSearchResponseOuterClass.FortSearchResponse;
 import okhttp3.OkHttpClient;
 
 public class PokeBot {
@@ -53,17 +43,20 @@ public class PokeBot {
 	public void transfertAllPokermon() throws LoginFailedException, RemoteServerException{
 		Map<PokemonId, Pokemon> pokemons = new HashMap<PokemonId, Pokemon>();
 		for(Pokemon pokemon : go.getPokebank().getPokemons()) {
-			if(!pokemon.getFavorite())
-				if (pokemons.containsKey(pokemon.getPokemonId())) {
-					if (pokemon.getCp() <= pokemons.get(pokemon.getPokemonId()).getCp()) {
-						System.out.println("Transfering pokemon " + pokemon.getPokemonId() + " : " + pokemon.transferPokemon());
-					} else {
-						System.out.println("Transfering pokemon " + pokemons.get(pokemon.getPokemonId()).getPokemonId() + " : " + pokemons.get(pokemon.getPokemonId()).transferPokemon());
-						pokemons.put(pokemon.getPokemonId(), pokemon);
-					}
-				}
-				else
+			
+			if (pokemon.getFavorite())
+				continue;
+
+			if (pokemons.containsKey(pokemon.getPokemonId())) {
+				if (pokemon.getCp() <= pokemons.get(pokemon.getPokemonId()).getCp()) {
+					System.out.println("Transfering pokemon " + pokemon.getPokemonId() + " : " + pokemon.transferPokemon());
+				} else {
+					System.out.println("Transfering pokemon " + pokemons.get(pokemon.getPokemonId()).getPokemonId() + " : " + pokemons.get(pokemon.getPokemonId()).transferPokemon());
 					pokemons.put(pokemon.getPokemonId(), pokemon);
+				}
+			}
+			else
+				pokemons.put(pokemon.getPokemonId(), pokemon);
 		}
 	}
 
@@ -96,8 +89,11 @@ public class PokeBot {
 				run(pokestop.getLatitude(), pokestop.getLongitude());
 
 			PokestopLootResult result = pokestop.loot();
+			go.getPlayerProfile(true);
 			capturePokemons(go.getMap().getCatchablePokemon());
+			
 			System.out.println("Pokestop " + cpt + "/" + pokestops.size() + " " + result.getResult() + ", XP: " + result.getExperience());
+			
 			if(cpt % (pokestops.size() / 2) == 0)
 				transfertAllPokermon();
 			if(cpt % 10 == 0)
@@ -119,7 +115,7 @@ public class PokeBot {
 		
 		for(Entry<ItemId, Integer> entry : deleteItems.entrySet()){
 			int countDelete = go.getBag().getItem(entry.getKey()).getCount() - entry.getValue();
-			if(countDelete > 0){
+			if(countDelete > 0) {
 				go.getBag().removeItem(entry.getKey(), countDelete);
 				System.out.println(countDelete + " " + entry.getKey().name() + " Deleted");
 			}

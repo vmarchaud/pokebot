@@ -38,8 +38,9 @@ public class Core {
 				System.out.println("Starting bot ..");
 				
 				new PokeBot(go);
-
-			} catch (LoginFailedException | RemoteServerException e) {
+				
+				Thread.sleep(60 * 1000);
+			} catch (LoginFailedException | RemoteServerException | InterruptedException e) {
 				// failed to login, invalid credentials or auth issue.
 				e.printStackTrace();
 			} 
