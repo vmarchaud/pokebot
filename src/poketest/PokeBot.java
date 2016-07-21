@@ -2,11 +2,16 @@ package poketest;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.pokegoapi.api.PokemonGo;
 import com.pokegoapi.api.inventory.Bag;
+import com.pokegoapi.api.inventory.Pokeball;
 import com.pokegoapi.api.map.MapObjects;
+import com.pokegoapi.api.map.Pokemon.CatchResult;
+import com.pokegoapi.api.map.Pokemon.CatchablePokemon;
+import com.pokegoapi.api.map.Pokemon.EncounterResult;
 import com.pokegoapi.api.map.fort.Pokestop;
 import com.pokegoapi.api.map.fort.PokestopLootResult;
 import com.pokegoapi.api.pokemon.Pokemon;
@@ -31,35 +36,18 @@ import okhttp3.OkHttpClient;
 
 public class PokeBot {
 
-	public static PokemonGo go;
-	public static final int SPEED = 10; // m/s
-
-	public static void main(String[] args) {
-		boolean pos = false;
-		OkHttpClient http = new OkHttpClient();
-		while(true) {
-			pos = !pos;
-			RequestEnvelopeOuterClass.RequestEnvelope.AuthInfo auth = null;
-			try {
-				auth = new PTCLogin(http).login("thisismac42", "30101997");
-				go = new PokemonGo(auth, http);
-				if(pos)
-					go.setLocation(48.857445, 2.295771, 0);
-				else
-					go.setLocation(48.854989, 2.348024, 0);
-
-				MapObjects mapObj = go.getMap().getMapObjects(go.getLatitude(), go.getLongitude(), 3);
-				Collection<Pokestop> pokestops = mapObj.getPokestops();
-				getPokestops(pokestops);
-
-			} catch (LoginFailedException | RemoteServerException e) {
-				// failed to login, invalid credentials or auth issue.
-				e.printStackTrace();
-			} 
-		}
+	public PokemonGo go;
+	public final int SPEED = 10; // m/s
+	private OkHttpClient httpClient;
+	
+	public PokeBot(PokemonGo go) throws LoginFailedException, RemoteServerException {
+		this.go = go;
+		
+		MapObjects objects = go.getMap().getMapObjects(3);
+		getPokestops(objects.getPokestops());
 	}
 
-	public static void transfertAllPokermon() throws LoginFailedException, RemoteServerException{
+	public void transfertAllPokermon() throws LoginFailedException, RemoteServerException{
 		Map<PokemonId, Pokemon> pokemons = new HashMap<PokemonId, Pokemon>();
 		for(Pokemon pokemon : go.getPokebank().getPokemons()) {
 
@@ -76,35 +64,26 @@ public class PokeBot {
 		}
 	}
 
-	public static void getPokemons(Collection<MapPokemon> pokemons) throws LoginFailedException, RemoteServerException{
-		for(MapPokemon pokemon : pokemons){
-			EncounterResponse respondE = go.getMap().encounterPokemon(pokemon);
+	public void capturePokemons(List<CatchablePokemon> list) throws LoginFailedException, RemoteServerException{
+		for(CatchablePokemon pokemon : list) {
+			EncounterResult respondE = pokemon.encounterPokemon();
 
 			if(respondE.getStatus() == Status.ENCOUNTER_SUCCESS){
 				Bag bag = go.getBag();
-				int pokeballid = ItemId.ITEM_POKE_BALL_VALUE;
 				
-				if(bag.getItem(ItemId.ITEM_MASTER_BALL) != null)
-					if(bag.getItem(ItemId.ITEM_MASTER_BALL).getCount() > 0)
-						pokeballid = ItemId.ITEM_MASTER_BALL_VALUE;
-				
-				else if(bag.getItem(ItemId.ITEM_ULTRA_BALL) != null)
-					if(bag.getItem(ItemId.ITEM_ULTRA_BALL).getCount() > 0)
-						pokeballid = ItemId.ITEM_ULTRA_BALL_VALUE;
-				
-				else if(bag.getItem(ItemId.ITEM_GREAT_BALL) != null)
-					if(bag.getItem(ItemId.ITEM_GREAT_BALL).getCount() > 0)
-						pokeballid = ItemId.ITEM_GREAT_BALL_VALUE;
-				
-				//System.out.println(bag.getItem(ItemId.ITEM_ULTRA_BALL) + "  " + pokeballid);
-				
-				CatchPokemonResponse respondC = go.getMap().catchPokemon(pokemon, 1.0, 2, 1, pokeballid);
-				System.out.println("	" + respondC.getStatus() + ", " + pokemon.getPokemonId().name());
+				Pokeball ball = Pokeball.POKEBALL;
+				if(bag.getItem(ItemId.ITEM_ULTRA_BALL) != null && bag.getItem(ItemId.ITEM_ULTRA_BALL).getCount() > 0)
+					ball = Pokeball.ULTRABALL;
+				else if(bag.getItem(ItemId.ITEM_GREAT_BALL) != null && bag.getItem(ItemId.ITEM_GREAT_BALL).getCount() > 0)
+					ball = Pokeball.GREATBALL;
+
+				CatchResult respondC = pokemon.catchPokemon(ball);
+				System.out.println("	" + respondC.getStatus() + ", " + pokemon.getPokemonId().name() + " using " + ball);
 			}
 		}
 	}
 
-	public static void getPokestops(Collection<Pokestop> pokestops) throws LoginFailedException, RemoteServerException{
+	public void getPokestops(Collection<Pokestop> pokestops) throws LoginFailedException, RemoteServerException{
 		System.out.println("Nombre de pokestops: " + pokestops.size());
 		int cpt = 0;
 		for(Pokestop pokestop : pokestops) {
@@ -113,7 +92,7 @@ public class PokeBot {
 				run(pokestop.getLatitude(), pokestop.getLongitude());
 			
 			PokestopLootResult result = pokestop.loot();
-			getPokemons(go.getMap().getMapObjects(go.getLatitude(), go.getLongitude()).getCatchablePokemons());
+			capturePokemons(go.getMap().getCatchablePokemon());
 			System.out.println("Pokestop " + cpt + "/" + pokestops.size() + " " + result.getResult() + ", XP: " + result.getExperience());
 			if(cpt % (pokestops.size() / 2) == 0)
 				transfertAllPokermon();
@@ -121,7 +100,7 @@ public class PokeBot {
 		transfertAllPokermon();
 	}
 
-	public static void run(double lat, double lon) throws LoginFailedException, RemoteServerException{
+	public void run(double lat, double lon) throws LoginFailedException, RemoteServerException{
 		double firstLat = go.getLatitude();
 		double firstLon = go.getLongitude();
 		double dist = distance(lat, firstLat, lon, firstLon);
@@ -129,7 +108,7 @@ public class PokeBot {
 		double changeLat = lat - firstLat;
 		double changeLon = lon - firstLon;
 
-		System.out.println("Attente de " + timeInSec(dist, SPEED) + " s");
+		System.out.println("Attente de " + (int) (dist / SPEED) + " s");
 		
 		for(int i = 0; i < sections; i++) {
 			go.setLocation(firstLat + changeLat * sections, firstLon + changeLon * sections, 0);
@@ -146,7 +125,7 @@ public class PokeBot {
 		go.setLocation(lat, lon, 0);
 	}
 
-	public static double distance(double lat1, double lat2, double lon1, double lon2) {
+	public double distance(double lat1, double lat2, double lon1, double lon2) {
 
 		final int R = 6371; // Radius of the earth
 
@@ -161,9 +140,5 @@ public class PokeBot {
 		distance = Math.pow(distance, 2);
 
 		return Math.sqrt(distance);
-	}
-
-	public static int timeInSec(double distance, double vitesse){
-		return (int) (distance / vitesse);
 	}
 }
