@@ -1,5 +1,6 @@
 package poketest;
 
+import java.security.SecureRandom;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -16,6 +17,8 @@ import com.pokegoapi.api.map.Pokemon.EncounterResult;
 import com.pokegoapi.api.map.fort.Pokestop;
 import com.pokegoapi.api.map.fort.PokestopLootResult;
 import com.pokegoapi.api.pokemon.Pokemon;
+import com.pokegoapi.auth.GoogleLogin;
+import com.pokegoapi.auth.PTCLogin;
 import com.pokegoapi.exceptions.LoginFailedException;
 import com.pokegoapi.exceptions.RemoteServerException;
 import com.pokegoapi.main.ServerRequest;
@@ -23,32 +26,79 @@ import com.pokegoapi.main.ServerRequest;
 import POGOProtos.Enums.PokemonIdOuterClass.PokemonId;
 import POGOProtos.Inventory.ItemIdOuterClass.ItemId;
 import POGOProtos.Networking.Requests.RequestTypeOuterClass.RequestType;
+import POGOProtos.Networking.Envelopes.RequestEnvelopeOuterClass.RequestEnvelope.AuthInfo;
 import POGOProtos.Networking.Requests.Messages.PlayerUpdateMessageOuterClass;
 import POGOProtos.Networking.Responses.CatchPokemonResponseOuterClass.CatchPokemonResponse.CatchStatus;
 import POGOProtos.Networking.Responses.EncounterResponseOuterClass.EncounterResponse.Status;
+import okhttp3.OkHttpClient;
+import poketest.Account.EnumProvider;
 
-public class PokeBot {
+public class PokeBot implements Runnable {
 
-	private PokemonGo go;
-	private boolean log;
-
-	private final int SPEED = 24; // m/s
-	private final int RANGE = 3;
+	private PokemonGo		go;
+	private Account 		account;
+	private CustomConfig 	config;
+	private CustomLogger	logger;
+	
+	
+	public SecureRandom 	rand = new SecureRandom();
+	private OkHttpClient 	http = new OkHttpClient();
 
 	private int xpEarned = 0;
 	private int pokemonTransfered = 0;
 	private int pokemonCatched = 0;
 
-	public PokeBot(PokemonGo go) throws LoginFailedException, RemoteServerException{
-		this(go, false);
+	public PokeBot(Account account, CustomConfig config) {
+		this.account = account;
+		this.config = config;
+		this.logger = new CustomLogger(account);
 	}
-
-	public PokeBot(PokemonGo go, boolean log) throws LoginFailedException, RemoteServerException {
-		this.go = go;
-		this.log = log;
-
-		MapObjects objects = go.getMap().getMapObjects(RANGE);
-		getPokestops(objects.getPokestops());
+	
+	public void run() {
+		int		failedLoginCount = 0;
+		while ( true ) {
+			try {
+				auth();
+			} catch (LoginFailedException e1) {
+				logger.important("Cant log into account attempt #" + failedLoginCount);
+				
+				// if we failed 3 times, wait 10 min
+				if (failedLoginCount == 3) {
+					logger.important("Will sleep 10 minutes to try for login again");
+					try {
+						Thread.sleep(10 * 60 * 1000);
+					} catch (InterruptedException e) { }
+					failedLoginCount = 0;
+				}
+				else
+					failedLoginCount++;
+			}
+			
+			try {
+				MapObjects objects = go.getMap().getMapObjects(config.getMap_radius());
+				getPokestops(objects.getPokestops());
+			} catch (LoginFailedException | RemoteServerException e) {
+				e.printStackTrace();
+			}
+			// sleep to avoid spamming
+			try {
+				Thread.sleep(60 * 1000);
+			} catch (InterruptedException e) { }
+		}
+	}
+	
+	public void auth() throws LoginFailedException {
+		AuthInfo auth = null;
+		if (account.getProvider() == EnumProvider.GOOGLE) 
+			auth = new GoogleLogin(http).login("", "");
+		else 
+			auth = new PTCLogin(http).login(account.getUsername(), account.getPassword());
+		
+		go = new PokemonGo(auth, http);
+		logger.important("Logged into pokemon go with fresh instance");
+		Location location = config.getSpawns().get(rand.nextInt(config.getSpawns().size()));
+		logger.important("Location choosen : " + Core.gson.toJson(location));
+		go.setLocation(location.getLattitude(), location.getLongitude(), 0);
 	}
 
 	public void transfertAllPokermon() throws LoginFailedException, RemoteServerException{
@@ -60,9 +110,9 @@ public class PokeBot {
 
 			if (pokemons.containsKey(pokemon.getPokemonId())) {
 				if (pokemon.getCp() <= pokemons.get(pokemon.getPokemonId()).getCp()) {
-					if(log) System.out.println("Transfering pokemon " + pokemon.getPokemonId() + " : " + pokemon.transferPokemon());
+					logger.log("Transfering pokemon " + pokemon.getPokemonId() + " : " + pokemon.transferPokemon());
 				} else {
-					if(log) System.out.println("Transfering pokemon " + pokemons.get(pokemon.getPokemonId()).getPokemonId() + " : " + pokemons.get(pokemon.getPokemonId()).transferPokemon());
+					logger.log("Transfering pokemon " + pokemons.get(pokemon.getPokemonId()).getPokemonId() + " : " + pokemons.get(pokemon.getPokemonId()).transferPokemon());
 					pokemons.put(pokemon.getPokemonId(), pokemon);
 				}
 				pokemonTransfered++;
@@ -70,43 +120,44 @@ public class PokeBot {
 			else
 				pokemons.put(pokemon.getPokemonId(), pokemon);
 		}
-		if(log) System.out.println();
 	}
 
 	public void capturePokemons(List<CatchablePokemon> list) throws LoginFailedException, RemoteServerException{
 		for(CatchablePokemon pokemon : list) {
 			EncounterResult respondE = pokemon.encounterPokemon();
 
-			if(respondE.getStatus() == Status.ENCOUNTER_SUCCESS){
+			if (respondE.getStatus() == Status.ENCOUNTER_SUCCESS){
 				go.getPlayerProfile(true);
 				Bag bag = go.getBag();
 
 				Pokeball ball = null;
-				if(bag.getItem(ItemId.ITEM_MASTER_BALL) != null && bag.getItem(ItemId.ITEM_MASTER_BALL).getCount() > 0)
+				if (bag.getItem(ItemId.ITEM_MASTER_BALL) != null && bag.getItem(ItemId.ITEM_MASTER_BALL).getCount() > 0)
 					ball = Pokeball.MASTERBALL;
-				else if(bag.getItem(ItemId.ITEM_ULTRA_BALL) != null && bag.getItem(ItemId.ITEM_ULTRA_BALL).getCount() > 0)
+				else if (bag.getItem(ItemId.ITEM_ULTRA_BALL) != null && bag.getItem(ItemId.ITEM_ULTRA_BALL).getCount() > 0)
 					ball = Pokeball.ULTRABALL;
-				else if(bag.getItem(ItemId.ITEM_GREAT_BALL) != null && bag.getItem(ItemId.ITEM_GREAT_BALL).getCount() > 0)
+				else if (bag.getItem(ItemId.ITEM_GREAT_BALL) != null && bag.getItem(ItemId.ITEM_GREAT_BALL).getCount() > 0)
 					ball = Pokeball.GREATBALL;
-				else if(bag.getItem(ItemId.ITEM_POKE_BALL) != null && bag.getItem(ItemId.ITEM_POKE_BALL).getCount() > 0)
+				else if (bag.getItem(ItemId.ITEM_POKE_BALL) != null && bag.getItem(ItemId.ITEM_POKE_BALL).getCount() > 0)
 					ball = Pokeball.POKEBALL;
 
-				if(ball != null){
+				if (ball != null){
 					CatchResult respondC = pokemon.catchPokemon(ball);
-					if(log) System.out.println("	" + respondC.getStatus() + ", " + pokemon.getPokemonId().name() + " using " + ball);
-					if(respondC.getStatus() == CatchStatus.CATCH_SUCCESS)
+					
+					logger.log("	" + respondC.getStatus() + ", " + pokemon.getPokemonId().name() + " using " + ball);
+					
+					if (respondC.getStatus() == CatchStatus.CATCH_SUCCESS)
 						pokemonCatched++;
-				}else{
-					if(log) System.out.println("	NO POKEBALL for " + pokemon.getPokemonId().name());
 				}
+				else
+					logger.log("	NO POKEBALL for " + pokemon.getPokemonId().name());
 			}
 		}
 	}
 
 	public void getPokestops(Collection<Pokestop> pokestops) throws LoginFailedException, RemoteServerException{
-		if(log) System.out.println("Nombre de pokestops: " + pokestops.size());
+		logger.log("Pokestop found : " + pokestops.size());
 		int cpt = 0;
-		go.getPlayerProfile(true);
+		
 		for(Pokestop pokestop : pokestops) {
 			cpt++;
 			if (!pokestop.canLoot())
@@ -115,7 +166,7 @@ public class PokeBot {
 			PokestopLootResult result = pokestop.loot();
 			capturePokemons(go.getMap().getCatchablePokemon());
 
-			if(log) System.out.println("Pokestop " + cpt + "/" + pokestops.size() + " " + result.getResult() + ", XP: " + result.getExperience() + "\n");
+			logger.log("Pokestop " + cpt + "/" + pokestops.size() + " " + result.getResult() + ", XP: " + result.getExperience());
 			xpEarned += result.getExperience();
 
 			if(cpt % 50 == 0)
@@ -138,39 +189,40 @@ public class PokeBot {
 		deleteItems.put(ItemId.ITEM_HYPER_POTION, 30);
 		deleteItems.put(ItemId.ITEM_REVIVE, 30);
 		deleteItems.put(ItemId.ITEM_POKE_BALL, 30);
+		deleteItems.put(ItemId.ITEM_GREAT_BALL, 50);
+		deleteItems.put(ItemId.ITEM_ULTRA_BALL, 50);
 
 		for(Entry<ItemId, Integer> entry : deleteItems.entrySet()){
 			int countDelete = go.getBag().getItem(entry.getKey()).getCount() - entry.getValue();
 			if(countDelete > 0) {
 				go.getBag().removeItem(entry.getKey(), countDelete);
-				if(log) System.out.println(countDelete + " " + entry.getKey().name() + " deleted");
+				logger.log(countDelete + " " + entry.getKey().name() + " deleted from inventory");
 			}
 		}
-		if(log) System.out.println();
 	}
 
 	public void showStats(){
 		long playerLvlXP = go.getPlayerProfile().getStats().getNextLevelXp() - go.getPlayerProfile().getStats().getExperience();
 		long LvlXP = go.getPlayerProfile().getStats().getNextLevelXp() - go.getPlayerProfile().getStats().getPrevLevelXp();
 		
-		System.out.println("----STATS----");
-		System.out.println("Account LVL " + go.getPlayerProfile().getStats().getLevel() + ", Next LVL in " + playerLvlXP + " XP ("
+		logger.important("----STATS----");
+		logger.important("Account LVL " + go.getPlayerProfile().getStats().getLevel() + ", Next LVL in " + playerLvlXP + " XP ("
 				+ (int)(100 - (playerLvlXP * 1. / LvlXP) * 100) + "%)");
-		System.out.println("XP Earned: " + xpEarned);
-		System.out.println("Pokemon catched: " + pokemonCatched);
-		System.out.println("Pokemon transfered: " + pokemonTransfered);
-		System.out.println("-------------\n");
+		logger.important("XP Earned: " + xpEarned);
+		logger.important("Pokemon catched: " + pokemonCatched);
+		logger.important("Pokemon transfered: " + pokemonTransfered);
+		logger.important("--------------");
 	}
 
 	public void run(double lat, double lon) throws LoginFailedException, RemoteServerException{
 		double firstLat = go.getLatitude();
 		double firstLon = go.getLongitude();
 		double dist = distance(lat, firstLat, lon, firstLon);
-		int sections = (int) (dist / SPEED);
+		int sections = (int) (dist / config.getSpeed());
 		double changeLat = lat - firstLat;
 		double changeLon = lon - firstLon;
 
-		if(log) System.out.println("Wait " + (int) (dist / SPEED) + " seconds to travel " + (int) (dist) + " m");
+		logger.log("Waiting " + (int) (dist / config.getSpeed()) + " seconds to travel " + (int) (dist) + " m");
 
 		for(int i = 0; i < sections; i++) {
 			go.setLocation(firstLat + changeLat * sections, firstLon + changeLon * sections, 0);
@@ -189,18 +241,12 @@ public class PokeBot {
 
 	public double distance(double lat1, double lat2, double lon1, double lon2) {
 
-		final int R = 6371; // Radius of the earth
-
 		Double latDistance = Math.toRadians(lat2 - lat1);
 		Double lonDistance = Math.toRadians(lon2 - lon1);
 		Double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
 				+ Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
 				* Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-		Double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-		double distance = R * c * 1000; // convert to meters
-
-		distance = Math.pow(distance, 2);
-
-		return Math.sqrt(distance);
+		
+		return Math.sqrt(Math.pow(6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))) * 1000, 2));
 	}
 }
