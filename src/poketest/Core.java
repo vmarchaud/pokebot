@@ -46,7 +46,7 @@ public class Core {
 
 				System.out.println("Starting bot ..");
 				
-				new PokeBot(go);
+				new PokeBot(go, true);
 				
 				Thread.sleep(60 * 1000);
 			} catch (LoginFailedException | RemoteServerException | InterruptedException e) {
