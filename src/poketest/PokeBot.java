@@ -150,8 +150,12 @@ public class PokeBot {
 	}
 
 	public void showStats(){
+		long playerLvlXP = go.getPlayerProfile().getStats().getNextLevelXp() - go.getPlayerProfile().getStats().getExperience();
+		long LvlXP = go.getPlayerProfile().getStats().getNextLevelXp() - go.getPlayerProfile().getStats().getPrevLevelXp();
+		
 		System.out.println("----STATS----");
-		System.out.println("Account LVL " + go.getPlayerProfile().getStats().getLevel() + " " + go.getPlayerProfile().getStats().getExperience() + "/" + go.getPlayerProfile().getStats().getNextLevelXp());
+		System.out.println("Account LVL " + go.getPlayerProfile().getStats().getLevel() + ", Next LVL in " + playerLvlXP + " XP ("
+				+ (int)(100 - (playerLvlXP * 1. / LvlXP) * 100) + "%)");
 		System.out.println("XP Earned: " + xpEarned);
 		System.out.println("Pokemon catched: " + pokemonCatched);
 		System.out.println("Pokemon transfered: " + pokemonTransfered);
