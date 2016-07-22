@@ -65,6 +65,7 @@ public class PokeBot {
 			EncounterResult respondE = pokemon.encounterPokemon();
 
 			if(respondE.getStatus() == Status.ENCOUNTER_SUCCESS){
+				go.getPlayerProfile(true);
 				Bag bag = go.getBag();
 
 				Pokeball ball = Pokeball.POKEBALL;
@@ -89,7 +90,6 @@ public class PokeBot {
 				run(pokestop.getLatitude(), pokestop.getLongitude());
 
 			PokestopLootResult result = pokestop.loot();
-			go.getPlayerProfile(true);
 			capturePokemons(go.getMap().getCatchablePokemon());
 			
 			System.out.println("Pokestop " + cpt + "/" + pokestops.size() + " " + result.getResult() + ", XP: " + result.getExperience());

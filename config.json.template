@@ -1,6 +1,7 @@
 {
 	username: "",
 	password: "",
+	provider: "GOOGLE OR PTC",
 	spawns: [
 		{
 			lattitude: 48.872692, 

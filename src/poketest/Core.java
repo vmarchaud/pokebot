@@ -10,12 +10,15 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.stream.JsonReader;
 import com.pokegoapi.api.PokemonGo;
+import com.pokegoapi.auth.GoogleLogin;
 import com.pokegoapi.auth.PTCLogin;
 import com.pokegoapi.exceptions.LoginFailedException;
 import com.pokegoapi.exceptions.RemoteServerException;
+import com.sun.net.ssl.internal.ssl.Provider;
 
 import POGOProtos.Networking.Envelopes.RequestEnvelopeOuterClass.RequestEnvelope.AuthInfo;
 import okhttp3.OkHttpClient;
+import poketest.CustomConfig.EnumProvider;
 
 public class Core {
 	
@@ -28,7 +31,13 @@ public class Core {
 		
 		while(true) {
 			try {
-				AuthInfo auth = new PTCLogin(http).login(config.getUsername(), config.getPassword());
+				AuthInfo auth = null;
+				if (config.getProvider() == EnumProvider.GOOGLE) 
+					auth = new GoogleLogin(http).login("", "");
+				else 
+					auth = new PTCLogin(http).login(config.getUsername(), config.getPassword());
+				
+				
 				PokemonGo go = new PokemonGo(auth, http);
 				System.out.println("Logged into pokemon go with fresh instance");
 				Location location = config.getSpawns().get(rand.nextInt(config.getSpawns().size()));
