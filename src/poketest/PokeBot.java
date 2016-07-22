@@ -77,8 +77,9 @@ public class PokeBot implements Runnable {
 			try {
 				MapObjects objects = go.getMap().getMapObjects(config.getMap_radius());
 				getPokestops(objects.getPokestops());
-			} catch (LoginFailedException | RemoteServerException e) {
-				e.printStackTrace();
+			} catch (Exception e) {
+				logger.important("Got error " + e.getMessage());
+				logger.important("Rebooting in 1 minutes ..");
 			}
 			// sleep to avoid spamming
 			try {
