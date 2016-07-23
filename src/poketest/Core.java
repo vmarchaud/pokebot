@@ -1,23 +1,23 @@
 package poketest;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.stream.JsonReader;
+
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
 
 public class Core {
 	
 	private static Map<Account, Thread>	bots = new HashMap<Account, Thread>();
-	public static Gson gson = new GsonBuilder().serializeNulls().create();
+	public static Moshi moshi = new Moshi.Builder().build();
 	
-	public static void main(String[] args) throws JsonIOException, JsonSyntaxException, FileNotFoundException, InterruptedException {
+	public static void main(String[] args) throws InterruptedException, IOException {
 		// Load config
-		CustomConfig config = gson.fromJson(new JsonReader(new FileReader("config.json")), CustomConfig.class);
+		JsonAdapter<CustomConfig> jsonAdapter = moshi.adapter(CustomConfig.class);
+		CustomConfig config = jsonAdapter.fromJson(new String(Files.readAllBytes(Paths.get("config.json"))));
 		
 		// Start a bot foreach account in his own thread
 		for(Account account : config.getAccounts()) {

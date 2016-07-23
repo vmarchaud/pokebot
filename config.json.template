@@ -1,40 +1,36 @@
 {
-	speed: 25,
-	map_radius: 3,
-	accounts: [
+	"speed": 25,
+	"map_radius": 3,
+	"accounts": [
 		{
-			username: "", 
-			password: "",
-			provider: "PTC",
-			logging: true
+			"username": "", 
+			"password": "",
+			"provider": "PTC",
+			"logging": true
 		},
 		{
-			username: "", 
-			password: "",
-			provider: "GOOGLE",
-			logging: true
+			"username": "", 
+			"password": "",
+			"provider": "PTC",
+			"logging": true
 		}
 	],
-	spawns: [
+	"spawns": [
 		{
-			lattitude: 48.872692, 
-			longitude: 2.776447
+			"lattitude": 48.864748, 
+			"longitude": 2.324225
 		},
 		{
-			lattitude: 48.864748, 
-			longitude: 2.324225
+			"lattitude": 48.847040, 
+			"longitude": 2.336942
 		},
 		{
-			lattitude: 48.847040, 
-			longitude: 2.336942
+			"lattitude": 48.852599, 
+			"longitude": 2.350832
 		},
 		{
-			lattitude: 48.852599, 
-			longitude: 2.350832
-		},
-		{
-			lattitude: 48.857328, 
-			longitude: 2.295734
+			"lattitude": 48.857328, 
+			"longitude": 2.295734
 		}
 	]
 }
