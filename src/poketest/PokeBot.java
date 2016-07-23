@@ -15,7 +15,6 @@ import com.pokegoapi.api.map.fort.Pokestop;
 import com.pokegoapi.api.map.fort.PokestopLootResult;
 import com.pokegoapi.api.map.pokemon.CatchResult;
 import com.pokegoapi.api.map.pokemon.CatchablePokemon;
-import com.pokegoapi.api.map.pokemon.EncounterResult;
 import com.pokegoapi.api.pokemon.Pokemon;
 import com.pokegoapi.auth.GoogleLogin;
 import com.pokegoapi.auth.PtcLogin;
@@ -129,10 +128,10 @@ public class PokeBot implements Runnable {
 
 	public void capturePokemons(List<CatchablePokemon> list) throws LoginFailedException, RemoteServerException{
 		for(CatchablePokemon pokemon : list) {
-			EncounterResult respondE = pokemon.encounterPokemon();
 
-			if (respondE.getStatus() == Status.ENCOUNTER_SUCCESS){
-				go.getPlayerProfile(true);
+			if (pokemon.encounterPokemon().getStatus() == Status.ENCOUNTER_SUCCESS){
+				go.getInventories().updateInventories(true);
+				
 				ItemBag bag = go.getInventories().getItemBag();
 
 				Pokeball ball = null;
@@ -185,7 +184,7 @@ public class PokeBot implements Runnable {
 	}
 
 	public void deleteUselessitem() throws RemoteServerException, LoginFailedException{
-		go.getPlayerProfile(true);
+		go.getInventories().updateInventories(true);
 
 		Map<ItemId, Integer> deleteItems = new HashMap<ItemId, Integer>();
 		deleteItems.put(ItemId.ITEM_RAZZ_BERRY, 0);
@@ -234,8 +233,7 @@ public class PokeBot implements Runnable {
 			PlayerUpdateMessageOuterClass.PlayerUpdateMessage request =  PlayerUpdateMessageOuterClass.PlayerUpdateMessage.newBuilder()
 					.setLatitude(go.getLatitude()).setLongitude(go.getLongitude()).build();
 
-			go.getRequestHandler().request(new ServerRequest(RequestType.PLAYER_UPDATE, request));
-			go.getRequestHandler().sendServerRequests();
+			go.getRequestHandler().sendServerRequests(new ServerRequest(RequestType.PLAYER_UPDATE, request));
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {}
