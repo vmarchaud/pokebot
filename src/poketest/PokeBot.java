@@ -8,23 +8,23 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import com.pokegoapi.api.PokemonGo;
-import com.pokegoapi.api.inventory.Bag;
+import com.pokegoapi.api.inventory.ItemBag;
 import com.pokegoapi.api.inventory.Pokeball;
 import com.pokegoapi.api.map.MapObjects;
-import com.pokegoapi.api.map.Pokemon.CatchResult;
-import com.pokegoapi.api.map.Pokemon.CatchablePokemon;
-import com.pokegoapi.api.map.Pokemon.EncounterResult;
 import com.pokegoapi.api.map.fort.Pokestop;
 import com.pokegoapi.api.map.fort.PokestopLootResult;
+import com.pokegoapi.api.map.pokemon.CatchResult;
+import com.pokegoapi.api.map.pokemon.CatchablePokemon;
+import com.pokegoapi.api.map.pokemon.EncounterResult;
 import com.pokegoapi.api.pokemon.Pokemon;
 import com.pokegoapi.auth.GoogleLogin;
-import com.pokegoapi.auth.PTCLogin;
+import com.pokegoapi.auth.PtcLogin;
 import com.pokegoapi.exceptions.LoginFailedException;
 import com.pokegoapi.exceptions.RemoteServerException;
 import com.pokegoapi.main.ServerRequest;
 
 import POGOProtos.Enums.PokemonIdOuterClass.PokemonId;
-import POGOProtos.Inventory.ItemIdOuterClass.ItemId;
+import POGOProtos.Inventory.Item.ItemIdOuterClass.ItemId;
 import POGOProtos.Networking.Requests.RequestTypeOuterClass.RequestType;
 import POGOProtos.Networking.Envelopes.RequestEnvelopeOuterClass.RequestEnvelope.AuthInfo;
 import POGOProtos.Networking.Requests.Messages.PlayerUpdateMessageOuterClass;
@@ -58,7 +58,11 @@ public class PokeBot implements Runnable {
 		int		failedLoginCount = 0;
 		while ( true ) {
 			try {
-				auth();
+				try {
+					auth();
+				} catch (RemoteServerException e) {
+					e.printStackTrace();
+				}
 			} catch (LoginFailedException e1) {
 				logger.important("Cant log into account attempt #" + failedLoginCount);
 				
@@ -88,12 +92,12 @@ public class PokeBot implements Runnable {
 		}
 	}
 	
-	public void auth() throws LoginFailedException {
+	public void auth() throws LoginFailedException, RemoteServerException {
 		AuthInfo auth = null;
 		if (account.getProvider() == EnumProvider.GOOGLE) 
 			auth = new GoogleLogin(http).login("", "");
 		else 
-			auth = new PTCLogin(http).login(account.getUsername(), account.getPassword());
+			auth = new PtcLogin(http).login(account.getUsername(), account.getPassword());
 		
 		go = new PokemonGo(auth, http);
 		logger.important("Logged into pokemon go with fresh instance");
@@ -104,7 +108,7 @@ public class PokeBot implements Runnable {
 
 	public void transfertAllPokermon() throws LoginFailedException, RemoteServerException{
 		Map<PokemonId, Pokemon> pokemons = new HashMap<PokemonId, Pokemon>();
-		for(Pokemon pokemon : go.getPokebank().getPokemons()) {
+		for(Pokemon pokemon : go.getInventories().getPokebank().getPokemons()) {
 
 			if (pokemon.getFavorite())
 				continue;
@@ -129,7 +133,7 @@ public class PokeBot implements Runnable {
 
 			if (respondE.getStatus() == Status.ENCOUNTER_SUCCESS){
 				go.getPlayerProfile(true);
-				Bag bag = go.getBag();
+				ItemBag bag = go.getInventories().getItemBag();
 
 				Pokeball ball = null;
 				if (bag.getItem(ItemId.ITEM_MASTER_BALL) != null && bag.getItem(ItemId.ITEM_MASTER_BALL).getCount() > 0)
@@ -194,9 +198,9 @@ public class PokeBot implements Runnable {
 		deleteItems.put(ItemId.ITEM_ULTRA_BALL, 50);
 
 		for(Entry<ItemId, Integer> entry : deleteItems.entrySet()){
-			int countDelete = go.getBag().getItem(entry.getKey()).getCount() - entry.getValue();
+			int countDelete = go.getInventories().getItemBag().getItem(entry.getKey()).getCount() - entry.getValue();
 			if(countDelete > 0) {
-				go.getBag().removeItem(entry.getKey(), countDelete);
+				go.getInventories().getItemBag().removeItem(entry.getKey(), countDelete);
 				logger.log(countDelete + " " + entry.getKey().name() + " deleted from inventory");
 			}
 		}
