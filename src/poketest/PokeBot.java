@@ -55,6 +55,10 @@ public class PokeBot implements Runnable {
 	private int pokemonTransfered = 0;
 	private int pokemonCatched = 0;
 	private int cachedLvl	= 0;
+	
+	private int[] requiredXP = { 0, 1000, 3000, 6000, 10000, 15000, 21000, 28000, 36000, 45000, 55000, 65000, 75000,
+            85000, 100000, 120000, 140000, 160000, 185000, 210000, 260000, 335000, 435000, 560000, 710000, 900000, 1100000,
+            1350000, 1650000, 2000000, 2500000, 3000000, 3750000, 4750000, 6000000, 7500000, 9500000, 12000000, 15000000, 20000000 };
 
 	public PokeBot(Account account, CustomConfig config) {
 		this.account = account;
@@ -222,15 +226,14 @@ public class PokeBot implements Runnable {
 	
 	public void manageEggs() throws LoginFailedException, RemoteServerException {
 		for(HatchedEgg egg : go.getInventories().getHatchery().queryHatchedEggs()) {
-			logger.log("A egg has hatched ");
+			logger.log("A egg has hatched  id : " + egg.getId());
 		}
 		go.getInventories().updateInventories(true);
 		
-		for(EggPokemon egg : go.getInventories().getHatchery().getEggs()) {
-			if (egg.getEggIncubatorId().length() > 0) {
-				logger.log("Egg " + egg.getId() + " is at " + egg.getEggKmWalkedStart() + "/" + egg.getEggKmWalkedTarget());
-			}
-		}
+		go.getInventories().getIncubators().stream()
+		.filter(incub -> incub.isInUse())
+		.forEach(incub -> 
+			logger.log(String.format("Incubator %s is at %d/%d", incub.getId(), (int)incub.getKmWalked(), (int)incub.getKmTarget())));
 		
 		List<EggIncubator> incubators = go.getInventories().getIncubators().stream()
 				.filter(incubator -> !incubator.isInUse())
@@ -254,12 +257,13 @@ public class PokeBot implements Runnable {
 	}
 
 	public void showStats() {
-		long playerLvlXP = go.getPlayerProfile().getStats().getNextLevelXp() - go.getPlayerProfile().getStats().getExperience();
-		long LvlXP = go.getPlayerProfile().getStats().getNextLevelXp() - go.getPlayerProfile().getStats().getPrevLevelXp();
+		int lvl = go.getPlayerProfile().getStats().getLevel();
+        int nextXP = requiredXP[lvl] - requiredXP[lvl - 1];
+        int curLevelXP = (int)go.getPlayerProfile().getStats().getExperience() - requiredXP[lvl - 1];
+        int ratio = (int) ((double)curLevelXP / (double)nextXP * 100.0);
 		
 		logger.important("----STATS----");
-		logger.important("Account LVL " + go.getPlayerProfile().getStats().getLevel() + ", Next LVL in " + playerLvlXP + " XP ("
-				+ (int)(100 - (playerLvlXP * 1. / LvlXP) * 100) + "%)");
+		logger.important(String.format("Account lvl %d : %d/%d (%d%%)", lvl, curLevelXP, nextXP, ratio));
 		logger.important("XP Earned: " + xpEarned);
 		logger.important("Pokemon catched: " + pokemonCatched);
 		logger.important("Pokemon transfered: " + pokemonTransfered);
@@ -269,7 +273,7 @@ public class PokeBot implements Runnable {
 	public void getRewards(int cachedLvl) throws RemoteServerException, LoginFailedException {
 		
 		LevelUpRewardsMessage msg = LevelUpRewardsMessage.newBuilder().setLevel(cachedLvl).build(); 
-		ServerRequest serverRequest = new ServerRequest(RequestType.USE_ITEM_EGG_INCUBATOR, msg);
+		ServerRequest serverRequest = new ServerRequest(RequestType.LEVEL_UP_REWARDS, msg);
 		go.getRequestHandler().sendServerRequests(serverRequest);
 		
 		LevelUpRewardsResponse response = null;
