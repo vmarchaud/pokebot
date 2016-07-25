@@ -68,28 +68,29 @@ public class PokeBot implements Runnable {
 	
 	public void run() {
 		int		failedLoginCount = 0;
-		while ( true ) {
+		
+		try {
 			try {
-				try {
-					auth();
-				} catch (RemoteServerException e) {
-					e.printStackTrace();
-				}
-			} catch (LoginFailedException e1) {
-				logger.important("Cant log into account attempt #" + failedLoginCount);
-				
-				// if we failed 3 times, wait 10 min
-				if (failedLoginCount == 3) {
-					logger.important("Will sleep 10 minutes to try for login again");
-					try {
-						Thread.sleep(10 * 60 * 1000);
-					} catch (InterruptedException e) { }
-					failedLoginCount = 0;
-				}
-				else
-					failedLoginCount++;
+				auth();
+			} catch (RemoteServerException e) {
+				e.printStackTrace();
 			}
+		} catch (LoginFailedException e1) {
+			logger.important("Cant log into account attempt #" + failedLoginCount);
 			
+			// if we failed 3 times, wait 10 min
+			if (failedLoginCount == 3) {
+				logger.important("Will sleep 10 minutes to try for login again");
+				try {
+					Thread.sleep(10 * 60 * 1000);
+				} catch (InterruptedException e) { }
+				failedLoginCount = 0;
+			}
+			else
+				failedLoginCount++;
+		}
+		
+		while ( true ) {
 			try {
 				MapObjects objects = go.getMap().getMapObjects(config.getMap_radius());
 				getPokestops(objects.getPokestops());
@@ -108,7 +109,7 @@ public class PokeBot implements Runnable {
 	public void auth() throws LoginFailedException, RemoteServerException {
 		AuthInfo auth = null;
 		if (account.getProvider() == EnumProvider.GOOGLE) 
-			auth = new GoogleLogin(http).login("", "");
+			auth = new GoogleLogin(http).login();
 		else 
 			auth = new PtcLogin(http).login(account.getUsername(), account.getPassword());
 		
@@ -214,6 +215,7 @@ public class PokeBot implements Runnable {
 		deleteItems.put(ItemId.ITEM_POKE_BALL, 30);
 		deleteItems.put(ItemId.ITEM_GREAT_BALL, 50);
 		deleteItems.put(ItemId.ITEM_ULTRA_BALL, 50);
+		deleteItems.put(ItemId.ITEM_MAX_POTION, 50);
 
 
 		for(Entry<ItemId, Integer> entry : deleteItems.entrySet()){
@@ -230,7 +232,10 @@ public class PokeBot implements Runnable {
 		
 		for(HatchedEgg egg : go.getInventories().getHatchery().queryHatchedEggs()) {
 			Pokemon pk = go.getInventories().getPokebank().getPokemonById(egg.getId());
-			logger.log(String.format("A egg has hetched : %s with cp : %d", pk.getPokemonId(), pk.getCp()));
+			if (pk == null)
+				logger.log("A egg has hetched");
+			else
+				logger.log(String.format("A egg has hetched : %s with cp : %d", pk.getPokemonId(), pk.getCp()));
 		}
 		
 		go.getInventories().getHatchery().getEggs().stream()
