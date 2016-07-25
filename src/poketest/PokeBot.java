@@ -94,6 +94,7 @@ public class PokeBot implements Runnable {
 				MapObjects objects = go.getMap().getMapObjects(config.getMap_radius());
 				getPokestops(objects.getPokestops());
 			} catch (Exception e) {
+				e.printStackTrace();
 				logger.important("Got error " + e.getMessage());
 				logger.important("Rebooting in 1 minutes ..");
 			}
@@ -225,15 +226,17 @@ public class PokeBot implements Runnable {
 	}
 	
 	public void manageEggs() throws LoginFailedException, RemoteServerException {
-		for(HatchedEgg egg : go.getInventories().getHatchery().queryHatchedEggs()) {
-			logger.log("A egg has hatched  id : " + egg.getId());
-		}
 		go.getInventories().updateInventories(true);
 		
-		go.getInventories().getIncubators().stream()
-		.filter(incub -> incub.isInUse())
-		.forEach(incub -> 
-			logger.log(String.format("Incubator %s is at %d/%d", incub.getId(), (int)incub.getKmWalked(), (int)incub.getKmTarget())));
+		for(HatchedEgg egg : go.getInventories().getHatchery().queryHatchedEggs()) {
+			Pokemon pk = go.getInventories().getPokebank().getPokemonById(egg.getId());
+			logger.log(String.format("A egg has hetched : %s with cp : %d", pk.getPokemonId(), pk.getCp()));
+		}
+		
+		go.getInventories().getHatchery().getEggs().stream()
+		.filter(egg -> egg.isIncubate())
+		.forEach(egg -> 
+			logger.log(String.format("Egg %s is at %d/%d", Long.toUnsignedString(egg.getId()), (int)egg.getEggKmWalkedStart(),(int) egg.getEggKmWalkedTarget())));
 		
 		List<EggIncubator> incubators = go.getInventories().getIncubators().stream()
 				.filter(incubator -> !incubator.isInUse())
