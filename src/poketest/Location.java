@@ -1,9 +1,13 @@
 package poketest;
 
 public class Location {
-	private double longitude;
 	private double lattitude;
+	private double longitude;
 	
+	public Location(double latitude, double longitude) {
+		this.lattitude = latitude;
+		this.longitude = longitude;
+	}
 	public double getLongitude() {
 		return longitude;
 	}

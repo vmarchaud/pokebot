@@ -22,6 +22,7 @@ import com.pokegoapi.api.map.pokemon.CatchablePokemon;
 import com.pokegoapi.api.pokemon.EggPokemon;
 import com.pokegoapi.api.pokemon.HatchedEgg;
 import com.pokegoapi.api.pokemon.Pokemon;
+import com.pokegoapi.api.pokemon.PokemonMetaRegistry;
 import com.pokegoapi.auth.GoogleLogin;
 import com.pokegoapi.auth.PtcLogin;
 import com.pokegoapi.exceptions.LoginFailedException;
@@ -140,6 +141,18 @@ public class PokeBot implements Runnable {
 			else
 				pokemons.put(pokemon.getPokemonId(), pokemon);
 		}
+		for(Pokemon pokemon : go.getInventories().getPokebank().getPokemons()){
+			PokemonId hightestPokemonId = PokemonMetaRegistry.getHightestForFamily(pokemon.getPokemonFamily());
+			if(hightestPokemonId != pokemon.getPokemonId()){
+				//if(go.getInventories().getCandyjar().getCandies(pokemon.getPokemonFamily()) >= PokemonMetaRegistry.getMeta(pokemon.getPokemonId()).getCandiesToEvolve())
+					if(!pokemons.containsKey(hightestPokemonId)){
+						logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + pokemon.evolve().getEvolvedPokemon().getPokemonId() + " " + pokemon.evolve().getResult());
+					}
+					else if (pokemons.get(hightestPokemonId).getCp() < pokemon.getCp() * pokemon.getCpMultiplier()){
+						logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + pokemon.evolve().getEvolvedPokemon().getPokemonId() + " " + pokemon.evolve().getResult());
+					}
+			}
+		}
 	}
 
 	public void capturePokemons(List<CatchablePokemon> list) throws LoginFailedException, RemoteServerException{
@@ -176,6 +189,19 @@ public class PokeBot implements Runnable {
 
 	public void getPokestops(Collection<Pokestop> pokestops) throws LoginFailedException, RemoteServerException{
 		logger.log("Pokestop found : " + pokestops.size());
+		
+		Location start = new Location(go.getLatitude(), go.getLongitude());
+		List<Location> parkour = BestParkour.buildLocationArrayFromPokestops(pokestops);
+		parkour.add(start);
+		
+		double rawDistance = BestParkour.getTotalParkour(parkour);
+		logger.log("Raw parkour: " + (int)(rawDistance) + " m in " + (int)(rawDistance / config.getSpeed()) + " secs");
+		
+		List<Location> bestParkour = BestParkour.getBestParkour(BestParkour.buildLocationArrayFromPokestops(pokestops), start);
+		double optimisedDistance = BestParkour.getTotalParkour(bestParkour);
+		logger.log("Optimised parkour: " + (int)(optimisedDistance) + " m in " + (int)(optimisedDistance / config.getSpeed()) + " secs");
+		pokestops = BestParkour.buildPokestopCollection(bestParkour, pokestops);
+		
 		int cpt = 0;
 		
 		for(Pokestop pokestop : pokestops) {
