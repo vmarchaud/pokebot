@@ -3,6 +3,7 @@ package poketest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.jgrapht.alg.HamiltonianCycle;
 import org.jgrapht.graph.DefaultWeightedEdge;
@@ -10,7 +11,7 @@ import org.jgrapht.graph.SimpleWeightedGraph;
 
 import com.pokegoapi.api.map.fort.Pokestop;
 
-public class BestParkour {
+public class Parkour {
 
 	public static List<Location> getBestParkour(List<Location> locations, Location start){
 		locations.add(start);
@@ -25,10 +26,8 @@ public class BestParkour {
 				graph.setEdgeWeight(graph.addEdge(locations.get(i), locations.get(j)), distance(locations.get(i), locations.get(j)));
 			}
 		}
-
-		List<Location> result = HamiltonianCycle.getApproximateOptimalForCompleteGraph(graph);
 		
-		return result;
+		return HamiltonianCycle.getApproximateOptimalForCompleteGraph(graph);
 	}
 	
 	public static double getTotalParkour(List<Location> locations){
@@ -40,11 +39,9 @@ public class BestParkour {
 	}
 	
 	public static List<Location> buildLocationArrayFromPokestops(Collection<Pokestop> pokestops){
-		List<Location> locs = new ArrayList<Location>();
-		for(Pokestop pokestop : pokestops){
-			locs.add(new Location(pokestop.getLatitude(), pokestop.getLongitude()));
-		}
-		return locs;
+		return pokestops.stream()
+				.map(pokestop -> new Location(pokestop.getLatitude(), pokestop.getLongitude()))
+				.collect(Collectors.toList());
 	}
 
 	public static double distance(Location loc1, Location loc2) {
@@ -62,16 +59,14 @@ public class BestParkour {
 		return Math.sqrt(Math.pow(6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))) * 1000, 2));
 	}
 
-	public static Collection<Pokestop> buildPokestopCollection(List<Location> bestParkour, Collection<Pokestop> pokestops) {
-		Collection<Pokestop> resultPokestop = new ArrayList<Pokestop>();
-		for(Location loc : bestParkour){
-			for(Pokestop pokestop : pokestops){
-				if(pokestop.getLongitude() == loc.getLongitude() && pokestop.getLatitude() == loc.getLattitude()){
-					resultPokestop.add(pokestop);
-					break;
-				}
-			}
+	public static Collection<Pokestop> buildPokestopCollection(List<Location> parkour, Collection<Pokestop> pokestops) {
+		Collection<Pokestop> result = new ArrayList<Pokestop>();
+		
+		for (Location loc : parkour) {
+			result.add(pokestops.stream()
+					.filter(pt -> pt.getLatitude() == loc.getLattitude() && pt.getLongitude() == loc.getLongitude())
+					.findAny().get());
 		}
-		return resultPokestop;
+		return result;
 	}
 }

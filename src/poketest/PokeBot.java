@@ -155,7 +155,6 @@ public class PokeBot implements Runnable {
 						logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + pokemon.evolve().getEvolvedPokemon().getPokemonId() + " " + pokemon.evolve().getResult());
 					}
 			}
-<<<<<<< HEAD
 		}*/
 	}
 
@@ -195,16 +194,16 @@ public class PokeBot implements Runnable {
 		logger.log("Pokestop found : " + pokestops.size());
 		
 		Location start = new Location(go.getLatitude(), go.getLongitude());
-		List<Location> parkour = BestParkour.buildLocationArrayFromPokestops(pokestops);
+		List<Location> parkour = Parkour.buildLocationArrayFromPokestops(pokestops);
 		parkour.add(start);
 		
-		double rawDistance = BestParkour.getTotalParkour(parkour);
+		double rawDistance = Parkour.getTotalParkour(parkour);
 		logger.log("Raw parkour: " + (int)(rawDistance) + " m in " + (int)(rawDistance / config.getSpeed()) + " secs");
 		
-		List<Location> bestParkour = BestParkour.getBestParkour(BestParkour.buildLocationArrayFromPokestops(pokestops), start);
-		double optimisedDistance = BestParkour.getTotalParkour(bestParkour);
+		List<Location> bestParkour = Parkour.getBestParkour(Parkour.buildLocationArrayFromPokestops(pokestops), start);
+		double optimisedDistance = Parkour.getTotalParkour(bestParkour);
 		logger.log("Optimised parkour: " + (int)(optimisedDistance) + " m in " + (int)(optimisedDistance / config.getSpeed()) + " secs");
-		pokestops = BestParkour.buildPokestopCollection(bestParkour, pokestops);
+		pokestops = Parkour.buildPokestopCollection(bestParkour, pokestops);
 		
 		int cpt = 0;
 		
@@ -327,13 +326,11 @@ public class PokeBot implements Runnable {
 		logger.log("Getting award for lvl " + (cachedLvl) + " with result : " + response.getResult());
 		
 	}
-	
-	
 
 	public void run(double lat, double lon) throws LoginFailedException, RemoteServerException{
 		double firstLat = go.getLatitude();
 		double firstLon = go.getLongitude();
-		double dist = distance(lat, firstLat, lon, firstLon);
+		double dist = Parkour.distance(lat, firstLat, lon, firstLon);
 		int sections = (int) (dist / config.getSpeed());
 		double changeLat = lat - firstLat;
 		double changeLon = lon - firstLon;
@@ -352,16 +349,5 @@ public class PokeBot implements Runnable {
 
 		}
 		go.setLocation(lat, lon, 0);
-	}
-
-	public double distance(double lat1, double lat2, double lon1, double lon2) {
-
-		Double latDistance = Math.toRadians(lat2 - lat1);
-		Double lonDistance = Math.toRadians(lon2 - lon1);
-		Double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-				+ Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-				* Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-		
-		return Math.sqrt(Math.pow(6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))) * 1000, 2));
 	}
 }
