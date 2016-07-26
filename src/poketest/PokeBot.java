@@ -22,6 +22,7 @@ import com.pokegoapi.api.map.pokemon.CatchablePokemon;
 import com.pokegoapi.api.pokemon.EggPokemon;
 import com.pokegoapi.api.pokemon.HatchedEgg;
 import com.pokegoapi.api.pokemon.Pokemon;
+import com.pokegoapi.api.pokemon.PokemonMetaRegistry;
 import com.pokegoapi.auth.GoogleLogin;
 import com.pokegoapi.auth.PtcLogin;
 import com.pokegoapi.exceptions.LoginFailedException;
@@ -140,6 +141,23 @@ public class PokeBot implements Runnable {
 			else
 				pokemons.put(pokemon.getPokemonId(), pokemon);
 		}
+		
+		// Faudrait choisir un peu plus si on evolve ou pas le pokemon (si il a un bon CP etc) ?
+		/*
+		for(Pokemon pokemon : go.getInventories().getPokebank().getPokemons()){
+			PokemonId hightestPokemonId = PokemonMetaRegistry.getHightestForFamily(pokemon.getPokemonFamily());
+			
+			if(hightestPokemonId != pokemon.getPokemonId()){
+				if(go.getInventories().getCandyjar().getCandies(pokemon.getPokemonFamily()) >= PokemonMetaRegistry.getMeta(pokemon.getPokemonId()).getCandiesToEvolve())
+					if(!pokemons.containsKey(hightestPokemonId)){
+						Evolution
+						logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + pokemon.evolve().getEvolvedPokemon().getPokemonId() + " " + pokemon.evolve().getResult());
+					}
+					else if (pokemons.get(hightestPokemonId).getCp() < pokemon.getCp() * pokemon.getCpMultiplier()){
+						logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + pokemon.evolve().getEvolvedPokemon().getPokemonId() + " " + pokemon.evolve().getResult());
+					}
+			}
+		}*/
 	}
 
 	public void capturePokemons(List<CatchablePokemon> list) throws LoginFailedException, RemoteServerException{
@@ -210,8 +228,9 @@ public class PokeBot implements Runnable {
 		deleteItems.put(ItemId.ITEM_RAZZ_BERRY, 0);
 		deleteItems.put(ItemId.ITEM_POTION, 0);
 		deleteItems.put(ItemId.ITEM_SUPER_POTION, 0);
-		deleteItems.put(ItemId.ITEM_HYPER_POTION, 30);
-		deleteItems.put(ItemId.ITEM_REVIVE, 30);
+		deleteItems.put(ItemId.ITEM_HYPER_POTION, 15);
+		deleteItems.put(ItemId.ITEM_REVIVE, 15);
+		deleteItems.put(ItemId.ITEM_MAX_REVIVE, 15);
 		deleteItems.put(ItemId.ITEM_POKE_BALL, 30);
 		deleteItems.put(ItemId.ITEM_GREAT_BALL, 50);
 		deleteItems.put(ItemId.ITEM_ULTRA_BALL, 50);
