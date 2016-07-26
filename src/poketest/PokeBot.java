@@ -374,6 +374,5 @@ public class PokeBot implements Runnable {
 				e.printStackTrace();
 			}
 		}
-		
 	}
 }
