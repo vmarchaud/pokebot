@@ -298,6 +298,8 @@ public class PokeBot implements Runnable {
 			return ;
 		
 		for(int i = 0; i < incubators.size(); i++) {
+			if (eggs.get(i) == null)
+				break ;
 			UseItemEggIncubatorResponse.Result result = incubators.get(i).hatchEgg(eggs.get(i));
 			logger.log("Trying to put an egg " + eggs.get(i).getEggKmWalkedTarget()  + " into the incubators result : " + result);
 		}
