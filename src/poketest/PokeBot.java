@@ -260,7 +260,7 @@ public class PokeBot implements Runnable {
 		go.getInventories().getHatchery().getEggs().stream()
 		.filter(egg -> egg.isIncubate())
 		.forEach(egg -> 
-			logger.log(String.format("Egg %s is at %d/%d", Long.toUnsignedString(egg.getId()), (int)egg.getEggKmWalkedStart(),(int) egg.getEggKmWalkedTarget())));
+			logger.log(String.format("Egg %s is at %s/%s", Long.toUnsignedString(egg.getId()), egg.getEggKmWalked(), egg.getEggKmWalkedTarget())));
 		
 		List<EggIncubator> incubators = go.getInventories().getIncubators().stream()
 				.filter(incubator -> !incubator.isInUse())
@@ -283,7 +283,9 @@ public class PokeBot implements Runnable {
 		}
 	}
 
-	public void showStats() {
+	public void showStats() throws LoginFailedException, RemoteServerException {
+		go.getPlayerProfile().updateProfile();
+		
 		int lvl = go.getPlayerProfile().getStats().getLevel();
         int nextXP = requiredXP[lvl] - requiredXP[lvl - 1];
         int curLevelXP = (int)go.getPlayerProfile().getStats().getExperience() - requiredXP[lvl - 1];
