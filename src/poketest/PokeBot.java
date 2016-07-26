@@ -19,6 +19,7 @@ import com.pokegoapi.api.map.fort.Pokestop;
 import com.pokegoapi.api.map.fort.PokestopLootResult;
 import com.pokegoapi.api.map.pokemon.CatchResult;
 import com.pokegoapi.api.map.pokemon.CatchablePokemon;
+import com.pokegoapi.api.map.pokemon.EvolutionResult;
 import com.pokegoapi.api.pokemon.EggPokemon;
 import com.pokegoapi.api.pokemon.HatchedEgg;
 import com.pokegoapi.api.pokemon.Pokemon;
@@ -143,19 +144,20 @@ public class PokeBot implements Runnable {
 		}
 		
 		// Faudrait choisir un peu plus si on evolve ou pas le pokemon (si il a un bon CP etc) ?
-		/*
 		for(Pokemon pokemon : go.getInventories().getPokebank().getPokemons()){
 			PokemonId hightestPokemonId = PokemonMetaRegistry.getHightestForFamily(pokemon.getPokemonFamily());
-			if(hightestPokemonId != pokemon.getPokemonId()){
-				//if(go.getInventories().getCandyjar().getCandies(pokemon.getPokemonFamily()) >= PokemonMetaRegistry.getMeta(pokemon.getPokemonId()).getCandiesToEvolve())
+			if(hightestPokemonId != pokemon.getPokemonId() && PokemonMetaRegistry.getMeta(pokemon.getPokemonId()) != null){
+				if(go.getInventories().getCandyjar().getCandies(pokemon.getPokemonFamily()) >= PokemonMetaRegistry.getMeta(pokemon.getPokemonId()).getCandiesToEvolve())
 					if(!pokemons.containsKey(hightestPokemonId)){
-						logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + pokemon.evolve().getEvolvedPokemon().getPokemonId() + " " + pokemon.evolve().getResult());
+						EvolutionResult result = pokemon.evolve();
+						logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + result.getEvolvedPokemon().getPokemonId() + " " + result.getResult());
 					}
 					else if (pokemons.get(hightestPokemonId).getCp() < pokemon.getCp() * pokemon.getCpMultiplier()){
-						logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + pokemon.evolve().getEvolvedPokemon().getPokemonId() + " " + pokemon.evolve().getResult());
+						EvolutionResult result = pokemon.evolve();
+						logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + result.getEvolvedPokemon().getPokemonId() + " " + result.getResult());
 					}
 			}
-		}*/
+		}
 	}
 
 	public void capturePokemons(List<CatchablePokemon> list) throws LoginFailedException, RemoteServerException{
