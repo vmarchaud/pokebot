@@ -1,5 +1,6 @@
 package poketest;
 
+import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -9,6 +10,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
+import com.google.gson.JsonIOException;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.pokegoapi.api.PokemonGo;
 import com.pokegoapi.api.inventory.EggIncubator;
@@ -24,8 +26,12 @@ import com.pokegoapi.api.pokemon.EggPokemon;
 import com.pokegoapi.api.pokemon.HatchedEgg;
 import com.pokegoapi.api.pokemon.Pokemon;
 import com.pokegoapi.api.pokemon.PokemonMetaRegistry;
-import com.pokegoapi.auth.GoogleLogin;
-import com.pokegoapi.auth.PtcLogin;
+import com.pokegoapi.auth.CredentialProvider;
+import com.pokegoapi.auth.GoogleAuthJson;
+import com.pokegoapi.auth.GoogleAuthTokenJson;
+import com.pokegoapi.auth.GoogleCredentialProvider;
+import com.pokegoapi.auth.GoogleCredentialProvider.OnGoogleLoginOAuthCompleteListener;
+import com.pokegoapi.auth.PtcCredentialProvider;
 import com.pokegoapi.exceptions.LoginFailedException;
 import com.pokegoapi.exceptions.RemoteServerException;
 import com.pokegoapi.main.ServerRequest;
@@ -33,7 +39,6 @@ import com.pokegoapi.main.ServerRequest;
 import POGOProtos.Enums.PokemonIdOuterClass.PokemonId;
 import POGOProtos.Inventory.Item.ItemIdOuterClass.ItemId;
 import POGOProtos.Networking.Requests.RequestTypeOuterClass.RequestType;
-import POGOProtos.Networking.Envelopes.RequestEnvelopeOuterClass.RequestEnvelope.AuthInfo;
 import POGOProtos.Networking.Requests.Messages.LevelUpRewardsMessageOuterClass.LevelUpRewardsMessage;
 import POGOProtos.Networking.Requests.Messages.PlayerUpdateMessageOuterClass.PlayerUpdateMessage;
 import POGOProtos.Networking.Responses.CatchPokemonResponseOuterClass.CatchPokemonResponse.CatchStatus;
@@ -109,11 +114,16 @@ public class PokeBot implements Runnable {
 	}
 	
 	public void auth() throws LoginFailedException, RemoteServerException {
-		AuthInfo auth = null;
-		if (account.getProvider() == EnumProvider.GOOGLE) 
-			auth = new GoogleLogin(http).login();
-		else 
-			auth = new PtcLogin(http).login(account.getUsername(), account.getPassword());
+		CredentialProvider auth = null;
+		// loggin with PTC with credentials
+		if (account.getProvider() == EnumProvider.PTC)
+			auth = new PtcCredentialProvider(http, account.getUsername(), account.getPassword());
+		// loggin with google with token to put into url
+		else if (account.getProvider() == EnumProvider.GOOGLE && account.getToken() == null) 
+			auth = new GoogleCredentialProvider(http, new GoogleLoginOAuthCompleteListener());
+		// loggin with google refresh token
+		else if (account.getProvider() == EnumProvider.GOOGLE && account.getToken().length() > 0)
+			auth = new GoogleCredentialProvider(http, account.getToken());
 		
 		go = new PokemonGo(auth, http);
 		cachedLvl = go.getPlayerProfile().getStats().getLevel();
@@ -143,19 +153,16 @@ public class PokeBot implements Runnable {
 				pokemons.put(pokemon.getPokemonId(), pokemon);
 		}
 		
-		// Faudrait choisir un peu plus si on evolve ou pas le pokemon (si il a un bon CP etc) ?
 		for(Pokemon pokemon : go.getInventories().getPokebank().getPokemons()){
 			PokemonId hightestPokemonId = PokemonMetaRegistry.getHightestForFamily(pokemon.getPokemonFamily());
-			if(hightestPokemonId != pokemon.getPokemonId() && PokemonMetaRegistry.getMeta(pokemon.getPokemonId()) != null){
-				if(go.getInventories().getCandyjar().getCandies(pokemon.getPokemonFamily()) >= PokemonMetaRegistry.getMeta(pokemon.getPokemonId()).getCandiesToEvolve())
-					if(!pokemons.containsKey(hightestPokemonId)){
-						EvolutionResult result = pokemon.evolve();
-						logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + result.getEvolvedPokemon().getPokemonId() + " " + result.getResult());
-					}
-					else if (pokemons.get(hightestPokemonId).getCp() < pokemon.getCp() * pokemon.getCpMultiplier()){
-						EvolutionResult result = pokemon.evolve();
-						logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + result.getEvolvedPokemon().getPokemonId() + " " + result.getResult());
-					}
+			
+			if (hightestPokemonId != pokemon.getPokemonId() && PokemonMetaRegistry.getMeta(pokemon.getPokemonId()) != null &&
+				go.getInventories().getCandyjar().getCandies(pokemon.getPokemonFamily()) >= PokemonMetaRegistry.getMeta(pokemon.getPokemonId()).getCandyToEvolve()) {
+				
+				if(!pokemons.containsKey(hightestPokemonId) || pokemons.get(hightestPokemonId).getCp() < pokemon.getCp() * pokemon.getCpMultiplier()){
+					EvolutionResult result = pokemon.evolve();
+					logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + result.getEvolvedPokemon().getPokemonId() + " " + result.getResult());
+				}
 			}
 		}
 	}
@@ -195,14 +202,12 @@ public class PokeBot implements Runnable {
 	public void getPokestops(Collection<Pokestop> pokestops) throws LoginFailedException, RemoteServerException{
 		logger.log("Pokestop found : " + pokestops.size());
 		
-		Location start = new Location(go.getLatitude(), go.getLongitude());
 		List<Location> parkour = Parkour.buildLocationArrayFromPokestops(pokestops);
-		parkour.add(start);
 		
 		double rawDistance = Parkour.getTotalParkour(parkour);
 		logger.log("Raw parkour: " + (int)(rawDistance) + " m in " + (int)(rawDistance / config.getSpeed()) + " secs");
 		
-		List<Location> bestParkour = Parkour.getBestParkour(Parkour.buildLocationArrayFromPokestops(pokestops), start);
+		List<Location> bestParkour = Parkour.getBestParkour(Parkour.buildLocationArrayFromPokestops(pokestops));
 		double optimisedDistance = Parkour.getTotalParkour(bestParkour);
 		logger.log("Optimised parkour: " + (int)(optimisedDistance) + " m in " + (int)(optimisedDistance / config.getSpeed()) + " secs");
 		pokestops = Parkour.buildPokestopCollection(bestParkour, pokestops);
@@ -211,6 +216,7 @@ public class PokeBot implements Runnable {
 		
 		for(Pokestop pokestop : pokestops) {
 			cpt++;
+			
 			if (!pokestop.canLoot())
 				run(pokestop.getLatitude(), pokestop.getLongitude());
 
@@ -249,7 +255,6 @@ public class PokeBot implements Runnable {
 		deleteItems.put(ItemId.ITEM_ULTRA_BALL, 50);
 		deleteItems.put(ItemId.ITEM_MAX_POTION, 50);
 
-
 		for(Entry<ItemId, Integer> entry : deleteItems.entrySet()){
 			int countDelete = go.getInventories().getItemBag().getItem(entry.getKey()).getCount() - entry.getValue();
 			if(countDelete > 0) {
@@ -273,7 +278,7 @@ public class PokeBot implements Runnable {
 		go.getInventories().getHatchery().getEggs().stream()
 		.filter(egg -> egg.isIncubate())
 		.forEach(egg -> 
-			logger.log(String.format("Egg %s is at %s/%s", Long.toUnsignedString(egg.getId()), egg.getEggKmWalked(), egg.getEggKmWalkedTarget())));
+			logger.log(String.format("Egg %s is at %4.3f/%4.3f", Long.toUnsignedString(egg.getId()), egg.getEggKmWalked(), egg.getEggKmWalkedTarget())));
 		
 		List<EggIncubator> incubators = go.getInventories().getIncubators().stream()
 				.filter(incubator -> !incubator.isInUse())
@@ -351,5 +356,24 @@ public class PokeBot implements Runnable {
 
 		}
 		go.setLocation(lat, lon, 0);
+	}
+	
+	public class GoogleLoginOAuthCompleteListener implements OnGoogleLoginOAuthCompleteListener {
+
+		@Override
+		public void onInitialOAuthComplete(GoogleAuthJson auth) {
+			logger.log("Waiting for the code " + auth.getUserCode() + " to be put in " + auth.getVerificationUrl());
+		}
+
+		@Override
+		public void onTokenIdReceived(GoogleAuthTokenJson tokens) {
+			account.setToken(tokens.getRefreshToken());
+			try {
+				config.save();
+			} catch (JsonIOException | IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
 	}
 }

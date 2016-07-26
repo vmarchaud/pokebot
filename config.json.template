@@ -1,36 +1,36 @@
 {
-	"speed": 25,
-	"map_radius": 3,
-	"accounts": [
-		{
-			"username": "", 
-			"password": "",
-			"provider": "PTC",
-			"logging": true
-		},
-		{
-			"username": "", 
-			"password": "",
-			"provider": "PTC",
-			"logging": true
-		}
-	],
-	"spawns": [
-		{
-			"lattitude": 48.864748, 
-			"longitude": 2.324225
-		},
-		{
-			"lattitude": 48.847040, 
-			"longitude": 2.336942
-		},
-		{
-			"lattitude": 48.852599, 
-			"longitude": 2.350832
-		},
-		{
-			"lattitude": 48.857328, 
-			"longitude": 2.295734
-		}
-	]
+  "accounts": [
+    {
+      "provider": "GOOGLE",
+      "username": "",
+      "password": "",
+      "logging": true
+    },
+    {
+      "provider": "PTC",
+      "username": "",
+      "password": "",
+      "logging": true
+    }
+  ],
+  "spawns": [
+    {
+      "lattitude": 48.864748,
+      "longitude": 2.324225
+    },
+    {
+      "lattitude": 48.84704,
+      "longitude": 2.336942
+    },
+    {
+      "lattitude": 48.852599,
+      "longitude": 2.350832
+    },
+    {
+      "lattitude": 48.857328,
+      "longitude": 2.295734
+    }
+  ],
+  "speed": 25,
+  "map_radius": 3
 }

@@ -13,9 +13,7 @@ import com.pokegoapi.api.map.fort.Pokestop;
 
 public class Parkour {
 
-	public static List<Location> getBestParkour(List<Location> locations, Location start){
-		locations.add(start);
-		
+	public static List<Location> getBestParkour(List<Location> locations) {
 		SimpleWeightedGraph<Location, DefaultWeightedEdge> graph = new SimpleWeightedGraph<Location, DefaultWeightedEdge>(DefaultWeightedEdge.class);
 		
 		for(int i = 0; i < locations.size(); i++){
