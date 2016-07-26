@@ -61,7 +61,8 @@ public class PokeBot implements Runnable {
 	private int xpEarned = 0;
 	private int pokemonTransfered = 0;
 	private int pokemonCatched = 0;
-	private int cachedLvl	= 0;
+	private int pokemonEvolved = 0;
+	private int cachedLvl = 0;
 	
 	private int[] requiredXP = { 0, 1000, 3000, 6000, 10000, 15000, 21000, 28000, 36000, 45000, 55000, 65000, 75000,
             85000, 100000, 120000, 140000, 160000, 185000, 210000, 260000, 335000, 435000, 560000, 710000, 900000, 1100000,
@@ -162,6 +163,7 @@ public class PokeBot implements Runnable {
 				if(!pokemons.containsKey(hightestPokemonId) || pokemons.get(hightestPokemonId).getCp() < pokemon.getCp() * pokemon.getCpMultiplier()){
 					EvolutionResult result = pokemon.evolve();
 					logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + result.getEvolvedPokemon().getPokemonId() + " " + result.getResult());
+					pokemonEvolved++;
 				}
 			}
 		}
@@ -314,6 +316,7 @@ public class PokeBot implements Runnable {
 		logger.important("XP Earned: " + xpEarned);
 		logger.important("Pokemon catched: " + pokemonCatched);
 		logger.important("Pokemon transfered: " + pokemonTransfered);
+		logger.important("Pokemon evolved: " + pokemonEvolved);
 		logger.important("--------------");
 	}
 	
