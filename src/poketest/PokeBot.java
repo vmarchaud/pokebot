@@ -36,15 +36,18 @@ import com.pokegoapi.exceptions.LoginFailedException;
 import com.pokegoapi.exceptions.RemoteServerException;
 import com.pokegoapi.main.ServerRequest;
 
+import POGOProtos.Enums.BadgeTypeOuterClass.BadgeType;
 import POGOProtos.Enums.PokemonIdOuterClass.PokemonId;
 import POGOProtos.Inventory.Item.ItemIdOuterClass.ItemId;
 import POGOProtos.Networking.Requests.RequestTypeOuterClass.RequestType;
+import POGOProtos.Networking.Requests.Messages.CheckAwardedBadgesMessageOuterClass.CheckAwardedBadgesMessage;
 import POGOProtos.Networking.Requests.Messages.GetGymDetailsMessageOuterClass.GetGymDetailsMessage;
 import POGOProtos.Networking.Requests.Messages.LevelUpRewardsMessageOuterClass.LevelUpRewardsMessage;
 import POGOProtos.Networking.Requests.Messages.PlayerUpdateMessageOuterClass.PlayerUpdateMessage;
 import POGOProtos.Networking.Requests.Messages.UseIncenseMessageOuterClass.UseIncenseMessage;
 import POGOProtos.Networking.Requests.Messages.UseItemXpBoostMessageOuterClass.UseItemXpBoostMessage;
 import POGOProtos.Networking.Responses.CatchPokemonResponseOuterClass.CatchPokemonResponse.CatchStatus;
+import POGOProtos.Networking.Responses.CheckAwardedBadgesResponseOuterClass.CheckAwardedBadgesResponse;
 import POGOProtos.Networking.Responses.EncounterResponseOuterClass.EncounterResponse.Status;
 import POGOProtos.Networking.Responses.GetGymDetailsResponseOuterClass.GetGymDetailsResponse;
 import POGOProtos.Networking.Responses.LevelUpRewardsResponseOuterClass.LevelUpRewardsResponse;
@@ -60,7 +63,7 @@ public class PokeBot implements Runnable {
 	private Account 		account;
 	private CustomConfig 	config;
 	private CustomLogger	logger;
-	
+
 	public SecureRandom 	rand = new SecureRandom();
 	private OkHttpClient 	http = new OkHttpClient();
 
@@ -69,41 +72,44 @@ public class PokeBot implements Runnable {
 	private int pokemonCatched = 0;
 	private int pokemonEvolved = 0;
 	private int cachedLvl = 0;
-	
+
 	private int[] requiredXP = { 0, 1000, 3000, 6000, 10000, 15000, 21000, 28000, 36000, 45000, 55000, 65000, 75000,
-            85000, 100000, 120000, 140000, 160000, 185000, 210000, 260000, 335000, 435000, 560000, 710000, 900000, 1100000,
-            1350000, 1650000, 2000000, 2500000, 3000000, 3750000, 4750000, 6000000, 7500000, 9500000, 12000000, 15000000, 20000000 };
+			85000, 100000, 120000, 140000, 160000, 185000, 210000, 260000, 335000, 435000, 560000, 710000, 900000, 1100000,
+			1350000, 1650000, 2000000, 2500000, 3000000, 3750000, 4750000, 6000000, 7500000, 9500000, 12000000, 15000000, 20000000 };
 
 	public PokeBot(Account account, CustomConfig config) {
 		this.account = account;
 		this.config = config;
 		this.logger = new CustomLogger(account);
 	}
-	
+
 	public void run() {
-		int		failedLoginCount = 0;
-		
-		try {
+		int	failedLoginCount = 0;
+		boolean authok = true;
+
+		do{
 			try {
 				auth();
 			} catch (RemoteServerException e) {
 				e.printStackTrace();
+				authok = false;
+			} catch (LoginFailedException e1) {
+				logger.important("Cant log into account attempt #" + failedLoginCount);
+
+				// if we failed 3 times, wait 10 min
+				if (failedLoginCount == 3) {
+					logger.important("Will sleep 10 minutes to try for login again");
+					try {
+						Thread.sleep(10 * 60 * 1000);
+					} catch (InterruptedException e) { }
+					failedLoginCount = 0;
+				}
+				else
+					failedLoginCount++;
+				authok = false;
 			}
-		} catch (LoginFailedException e1) {
-			logger.important("Cant log into account attempt #" + failedLoginCount);
-			
-			// if we failed 3 times, wait 10 min
-			if (failedLoginCount == 3) {
-				logger.important("Will sleep 10 minutes to try for login again");
-				try {
-					Thread.sleep(10 * 60 * 1000);
-				} catch (InterruptedException e) { }
-				failedLoginCount = 0;
-			}
-			else
-				failedLoginCount++;
-		}
-		
+		}while(!authok);
+
 		while ( true ) {
 			try {
 				MapObjects objects = go.getMap().getMapObjects(config.getMap_radius());
@@ -119,7 +125,7 @@ public class PokeBot implements Runnable {
 			} catch (InterruptedException e) { }
 		}
 	}
-	
+
 	public void auth() throws LoginFailedException, RemoteServerException {
 		CredentialProvider auth = null;
 		// loggin with PTC with credentials
@@ -131,7 +137,7 @@ public class PokeBot implements Runnable {
 		// loggin with google refresh token
 		else if (account.getProvider() == EnumProvider.GOOGLE && account.getToken().length() > 0)
 			auth = new GoogleCredentialProvider(http, account.getToken());
-		
+
 		go = new PokemonGo(auth, http);
 		cachedLvl = go.getPlayerProfile().getStats().getLevel();
 		logger.important("Logged into pokemon go with fresh instance");
@@ -159,13 +165,13 @@ public class PokeBot implements Runnable {
 			else
 				pokemons.put(pokemon.getPokemonId(), pokemon);
 		}
-		
+
 		for(Pokemon pokemon : go.getInventories().getPokebank().getPokemons()){
 			PokemonId hightestPokemonId = PokemonMetaRegistry.getHightestForFamily(pokemon.getPokemonFamily());
-			
+
 			if (hightestPokemonId != pokemon.getPokemonId() && PokemonMetaRegistry.getMeta(pokemon.getPokemonId()) != null &&
-				go.getInventories().getCandyjar().getCandies(pokemon.getPokemonFamily()) >= PokemonMetaRegistry.getMeta(pokemon.getPokemonId()).getCandyToEvolve()) {
-				
+					go.getInventories().getCandyjar().getCandies(pokemon.getPokemonFamily()) >= PokemonMetaRegistry.getMeta(pokemon.getPokemonId()).getCandyToEvolve()) {
+
 				if(!pokemons.containsKey(hightestPokemonId) || pokemons.get(hightestPokemonId).getCp() < pokemon.getCp() * pokemon.getCpMultiplier()){
 					EvolutionResult result = pokemon.evolve();
 					logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + result.getEvolvedPokemon().getPokemonId() + " " + result.getResult());
@@ -180,7 +186,7 @@ public class PokeBot implements Runnable {
 
 			if (pokemon.encounterPokemon().getStatus() == Status.ENCOUNTER_SUCCESS){
 				go.getInventories().updateInventories(true);
-				
+
 				ItemBag bag = go.getInventories().getItemBag();
 
 				Pokeball ball = null;
@@ -195,9 +201,9 @@ public class PokeBot implements Runnable {
 
 				if (ball != null){
 					CatchResult respondC = pokemon.catchPokemon(ball);
-					
+
 					logger.log("	" + respondC.getStatus() + ", " + pokemon.getPokemonId().name() + " using " + ball);
-					
+
 					if (respondC.getStatus() == CatchStatus.CATCH_SUCCESS)
 						pokemonCatched++;
 				}
@@ -207,26 +213,27 @@ public class PokeBot implements Runnable {
 		}
 	}
 
-	public void getPokestops(Collection<Pokestop> pokestops) throws LoginFailedException, RemoteServerException, InvalidProtocolBufferException{
+	public void getPokestops(Collection<Pokestop> pokestops) throws LoginFailedException, RemoteServerException{
 		logger.log("Pokestop found : " + pokestops.size());
-		
+
 		List<Location> parkour = Parkour.buildLocationArrayFromPokestops(pokestops);
-		
+
 		double rawDistance = Parkour.getTotalParkour(parkour);
 		logger.log("Raw parkour: " + (int)(rawDistance) + " m in " + (int)(rawDistance / config.getSpeed()) + " secs");
-		
+
 		List<Location> bestParkour = Parkour.getBestParkour(Parkour.buildLocationArrayFromPokestops(pokestops));
 		double optimisedDistance = Parkour.getTotalParkour(bestParkour);
 		logger.log("Optimised parkour: " + (int)(optimisedDistance) + " m in " + (int)(optimisedDistance / config.getSpeed()) + " secs");
 		pokestops = Parkour.buildPokestopCollection(bestParkour, pokestops);
-		
+
 		useXpBoost();
 		useIncense();
-		
+		getBadges();
+
 		int cpt = 0;
 		for(Pokestop pokestop : pokestops) {
 			cpt++;
-			
+
 			if (!pokestop.canLoot())
 				run(pokestop.getLatitude(), pokestop.getLongitude());
 
@@ -248,27 +255,38 @@ public class PokeBot implements Runnable {
 			}
 		}
 	}
-	
-	public void useXpBoost() throws RemoteServerException, LoginFailedException, InvalidProtocolBufferException{
+
+	public void useXpBoost() throws RemoteServerException, LoginFailedException{
 		UseItemXpBoostMessage xpBoost =  UseItemXpBoostMessage.newBuilder().setItemId(ItemId.ITEM_LUCKY_EGG).setItemIdValue(ItemId.ITEM_LUCKY_EGG_VALUE).build();
 
-        ServerRequest request = new ServerRequest(RequestType.USE_ITEM_XP_BOOST, xpBoost);
-        go.getRequestHandler().sendServerRequests(request);
-        UseItemXpBoostResponse xpBoostResponse = UseItemXpBoostResponse.parseFrom(request.getData());
-       
-        logger.log("Use XP boost: " + xpBoostResponse.getResult());
+		ServerRequest request = new ServerRequest(RequestType.USE_ITEM_XP_BOOST, xpBoost);
+		go.getRequestHandler().sendServerRequests(request);
+		UseItemXpBoostResponse xpBoostResponse = null;
+		try {
+			xpBoostResponse = UseItemXpBoostResponse.parseFrom(request.getData());
+		} catch (InvalidProtocolBufferException e) {
+			e.printStackTrace();
+		}
+
+		logger.log("Use XP boost: " + xpBoostResponse.getResult());
 	}
-	
-	public void useIncense() throws RemoteServerException, LoginFailedException, InvalidProtocolBufferException{
+
+	public void useIncense() throws RemoteServerException, LoginFailedException{
 		UseIncenseMessage xpBoost =  UseIncenseMessage.newBuilder().setIncenseType(ItemId.ITEM_INCENSE_ORDINARY).setIncenseTypeValue(ItemId.ITEM_INCENSE_ORDINARY_VALUE).build();
 
-        ServerRequest request = new ServerRequest(RequestType.USE_INCENSE, xpBoost);
-        go.getRequestHandler().sendServerRequests(request);
-        UseIncenseResponse xpBoostResponse = UseIncenseResponse.parseFrom(request.getData());
-       
-        logger.log("Use incense: " + xpBoostResponse.getResult());
+		ServerRequest request = new ServerRequest(RequestType.USE_INCENSE, xpBoost);
+		go.getRequestHandler().sendServerRequests(request);
+		UseIncenseResponse xpBoostResponse = null;
+		try {
+			xpBoostResponse = UseIncenseResponse.parseFrom(request.getData());
+		} catch (InvalidProtocolBufferException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		logger.log("Use incense: " + xpBoostResponse.getResult());
 	}
-	
+
 	public void deleteUselessitem() throws RemoteServerException, LoginFailedException{
 		go.getInventories().updateInventories(true);
 
@@ -292,10 +310,10 @@ public class PokeBot implements Runnable {
 			}
 		}
 	}
-	
+
 	public void manageEggs() throws LoginFailedException, RemoteServerException {
 		go.getInventories().updateInventories(true);
-		
+
 		for(HatchedEgg egg : go.getInventories().getHatchery().queryHatchedEggs()) {
 			Pokemon pk = go.getInventories().getPokebank().getPokemonById(egg.getId());
 			if (pk == null)
@@ -303,19 +321,19 @@ public class PokeBot implements Runnable {
 			else
 				logger.log(String.format("A egg has hetched : %s with cp : %d", pk.getPokemonId(), pk.getCp()));
 		}
-		
+
 		go.getInventories().getHatchery().getEggs().stream()
 		.filter(egg -> egg.isIncubate())
 		.forEach(egg -> 
-			logger.log(String.format("Egg %s is at %4.3f/%4.3f", Long.toUnsignedString(egg.getId()), egg.getEggKmWalked(), egg.getEggKmWalkedTarget())));
-		
+		logger.log(String.format("Egg %s is at %4.3f/%4.3f", Long.toUnsignedString(egg.getId()), egg.getEggKmWalked(), egg.getEggKmWalkedTarget())));
+
 		List<EggIncubator> incubators = go.getInventories().getIncubators().stream()
 				.filter(incubator -> !incubator.isInUse())
 				.collect(Collectors.toCollection(ArrayList::new));
 		logger.log("Currently have " + incubators.size() + " incubators available to incube eggs.");
 		if (incubators.size() == 0)
 			return ;
-		
+
 		List<EggPokemon> eggs = go.getInventories().getHatchery().getEggs().stream()
 				.filter(egg -> egg.getEggIncubatorId() == null || egg.getEggIncubatorId().length() == 0)
 				.sorted((left, right) -> Double.compare(left.getEggKmWalkedTarget(), right.getEggKmWalkedTarget()))
@@ -323,9 +341,9 @@ public class PokeBot implements Runnable {
 		logger.log("Currently have " + eggs.size() + "eggs available to be incubate.");
 		if (eggs.size() == 0)
 			return ;
-		
+
 		for(int i = 0; i < incubators.size(); i++) {
-			if (eggs.get(i) == null)
+			if (i >= eggs.size())
 				break ;
 			UseItemEggIncubatorResponse.Result result = incubators.get(i).hatchEgg(eggs.get(i));
 			logger.log("Trying to put an egg " + eggs.get(i).getEggKmWalkedTarget()  + " into the incubators result : " + result);
@@ -334,12 +352,12 @@ public class PokeBot implements Runnable {
 
 	public void showStats() throws LoginFailedException, RemoteServerException {
 		go.getPlayerProfile().updateProfile();
-		
+
 		int lvl = go.getPlayerProfile().getStats().getLevel();
-        int nextXP = requiredXP[lvl] - requiredXP[lvl - 1];
-        int curLevelXP = (int)go.getPlayerProfile().getStats().getExperience() - requiredXP[lvl - 1];
-        int ratio = (int) ((double)curLevelXP / (double)nextXP * 100.0);
-		
+		int nextXP = requiredXP[lvl] - requiredXP[lvl - 1];
+		int curLevelXP = (int)go.getPlayerProfile().getStats().getExperience() - requiredXP[lvl - 1];
+		int ratio = (int) ((double)curLevelXP / (double)nextXP * 100.0);
+
 		logger.important("----STATS----");
 		logger.important(String.format("Account lvl %d : %d/%d (%d%%)", lvl, curLevelXP, nextXP, ratio));
 		logger.important("XP Earned: " + xpEarned);
@@ -348,22 +366,28 @@ public class PokeBot implements Runnable {
 		logger.important("Pokemon evolved: " + pokemonEvolved);
 		logger.important("--------------");
 	}
-	
+
+	public void getBadges() throws LoginFailedException, RemoteServerException{
+		CheckAwardedBadgesMessage msg = CheckAwardedBadgesMessage.newBuilder().build();
+		ServerRequest serverRequest = new ServerRequest(RequestType.CHECK_AWARDED_BADGES, msg);
+		go.getRequestHandler().sendServerRequests(serverRequest);
+	}
+
 	public void getRewards(int cachedLvl) throws RemoteServerException, LoginFailedException {
-		
+
 		LevelUpRewardsMessage msg = LevelUpRewardsMessage.newBuilder().setLevel(cachedLvl).build(); 
 		ServerRequest serverRequest = new ServerRequest(RequestType.LEVEL_UP_REWARDS, msg);
 		go.getRequestHandler().sendServerRequests(serverRequest);
-		
+
 		LevelUpRewardsResponse response = null;
 		try {
 			response = LevelUpRewardsResponse.parseFrom(serverRequest.getData());
 		} catch (InvalidProtocolBufferException e) {
 			throw new RemoteServerException(e);
 		}
-		
+
 		logger.log("Getting award for lvl " + (cachedLvl) + " with result : " + response.getResult());
-		
+
 	}
 
 	public void run(double lat, double lon) throws LoginFailedException, RemoteServerException{
@@ -389,7 +413,7 @@ public class PokeBot implements Runnable {
 		}
 		go.setLocation(lat, lon, 0);
 	}
-	
+
 	public class GoogleLoginOAuthCompleteListener implements OnGoogleLoginOAuthCompleteListener {
 
 		@Override
@@ -406,6 +430,6 @@ public class PokeBot implements Runnable {
 				e.printStackTrace();
 			}
 		}
-		
+
 	}
 }
