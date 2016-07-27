@@ -42,11 +42,13 @@ import POGOProtos.Networking.Requests.RequestTypeOuterClass.RequestType;
 import POGOProtos.Networking.Requests.Messages.GetGymDetailsMessageOuterClass.GetGymDetailsMessage;
 import POGOProtos.Networking.Requests.Messages.LevelUpRewardsMessageOuterClass.LevelUpRewardsMessage;
 import POGOProtos.Networking.Requests.Messages.PlayerUpdateMessageOuterClass.PlayerUpdateMessage;
+import POGOProtos.Networking.Requests.Messages.UseIncenseMessageOuterClass.UseIncenseMessage;
 import POGOProtos.Networking.Requests.Messages.UseItemXpBoostMessageOuterClass.UseItemXpBoostMessage;
 import POGOProtos.Networking.Responses.CatchPokemonResponseOuterClass.CatchPokemonResponse.CatchStatus;
 import POGOProtos.Networking.Responses.EncounterResponseOuterClass.EncounterResponse.Status;
 import POGOProtos.Networking.Responses.GetGymDetailsResponseOuterClass.GetGymDetailsResponse;
 import POGOProtos.Networking.Responses.LevelUpRewardsResponseOuterClass.LevelUpRewardsResponse;
+import POGOProtos.Networking.Responses.UseIncenseResponseOuterClass.UseIncenseResponse;
 import POGOProtos.Networking.Responses.UseItemEggIncubatorResponseOuterClass.UseItemEggIncubatorResponse;
 import POGOProtos.Networking.Responses.UseItemXpBoostResponseOuterClass.UseItemXpBoostResponse;
 import okhttp3.OkHttpClient;
@@ -219,6 +221,7 @@ public class PokeBot implements Runnable {
 		pokestops = Parkour.buildPokestopCollection(bestParkour, pokestops);
 		
 		useXpBoost();
+		useIncense();
 		
 		int cpt = 0;
 		for(Pokestop pokestop : pokestops) {
@@ -253,7 +256,17 @@ public class PokeBot implements Runnable {
         go.getRequestHandler().sendServerRequests(request);
         UseItemXpBoostResponse xpBoostResponse = UseItemXpBoostResponse.parseFrom(request.getData());
        
-        logger.log("XP Boost use: " + xpBoostResponse.getResult());
+        logger.log("Use XP boost: " + xpBoostResponse.getResult());
+	}
+	
+	public void useIncense() throws RemoteServerException, LoginFailedException, InvalidProtocolBufferException{
+		UseIncenseMessage xpBoost =  UseIncenseMessage.newBuilder().setIncenseType(ItemId.ITEM_INCENSE_ORDINARY).setIncenseTypeValue(ItemId.ITEM_INCENSE_ORDINARY_VALUE).build();
+
+        ServerRequest request = new ServerRequest(RequestType.USE_INCENSE, xpBoost);
+        go.getRequestHandler().sendServerRequests(request);
+        UseIncenseResponse xpBoostResponse = UseIncenseResponse.parseFrom(request.getData());
+       
+        logger.log("Use incense: " + xpBoostResponse.getResult());
 	}
 	
 	public void deleteUselessitem() throws RemoteServerException, LoginFailedException{
