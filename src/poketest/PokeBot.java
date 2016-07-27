@@ -39,12 +39,16 @@ import com.pokegoapi.main.ServerRequest;
 import POGOProtos.Enums.PokemonIdOuterClass.PokemonId;
 import POGOProtos.Inventory.Item.ItemIdOuterClass.ItemId;
 import POGOProtos.Networking.Requests.RequestTypeOuterClass.RequestType;
+import POGOProtos.Networking.Requests.Messages.GetGymDetailsMessageOuterClass.GetGymDetailsMessage;
 import POGOProtos.Networking.Requests.Messages.LevelUpRewardsMessageOuterClass.LevelUpRewardsMessage;
 import POGOProtos.Networking.Requests.Messages.PlayerUpdateMessageOuterClass.PlayerUpdateMessage;
+import POGOProtos.Networking.Requests.Messages.UseItemXpBoostMessageOuterClass.UseItemXpBoostMessage;
 import POGOProtos.Networking.Responses.CatchPokemonResponseOuterClass.CatchPokemonResponse.CatchStatus;
 import POGOProtos.Networking.Responses.EncounterResponseOuterClass.EncounterResponse.Status;
+import POGOProtos.Networking.Responses.GetGymDetailsResponseOuterClass.GetGymDetailsResponse;
 import POGOProtos.Networking.Responses.LevelUpRewardsResponseOuterClass.LevelUpRewardsResponse;
 import POGOProtos.Networking.Responses.UseItemEggIncubatorResponseOuterClass.UseItemEggIncubatorResponse;
+import POGOProtos.Networking.Responses.UseItemXpBoostResponseOuterClass.UseItemXpBoostResponse;
 import okhttp3.OkHttpClient;
 import poketest.Account.EnumProvider;
 
@@ -201,7 +205,7 @@ public class PokeBot implements Runnable {
 		}
 	}
 
-	public void getPokestops(Collection<Pokestop> pokestops) throws LoginFailedException, RemoteServerException{
+	public void getPokestops(Collection<Pokestop> pokestops) throws LoginFailedException, RemoteServerException, InvalidProtocolBufferException{
 		logger.log("Pokestop found : " + pokestops.size());
 		
 		List<Location> parkour = Parkour.buildLocationArrayFromPokestops(pokestops);
@@ -214,8 +218,9 @@ public class PokeBot implements Runnable {
 		logger.log("Optimised parkour: " + (int)(optimisedDistance) + " m in " + (int)(optimisedDistance / config.getSpeed()) + " secs");
 		pokestops = Parkour.buildPokestopCollection(bestParkour, pokestops);
 		
-		int cpt = 0;
+		useXpBoost();
 		
+		int cpt = 0;
 		for(Pokestop pokestop : pokestops) {
 			cpt++;
 			
@@ -241,6 +246,15 @@ public class PokeBot implements Runnable {
 		}
 	}
 	
+	public void useXpBoost() throws RemoteServerException, LoginFailedException, InvalidProtocolBufferException{
+		UseItemXpBoostMessage xpBoost =  UseItemXpBoostMessage.newBuilder().setItemId(ItemId.ITEM_LUCKY_EGG).setItemIdValue(ItemId.ITEM_LUCKY_EGG_VALUE).build();
+
+        ServerRequest request = new ServerRequest(RequestType.USE_ITEM_XP_BOOST, xpBoost);
+        go.getRequestHandler().sendServerRequests(request);
+        UseItemXpBoostResponse xpBoostResponse = UseItemXpBoostResponse.parseFrom(request.getData());
+       
+        logger.log("XP Boost use: " + xpBoostResponse.getResult());
+	}
 	
 	public void deleteUselessitem() throws RemoteServerException, LoginFailedException{
 		go.getInventories().updateInventories(true);
