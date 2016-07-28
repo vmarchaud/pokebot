@@ -1,16 +1,15 @@
 package poketest;
 
-import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
-import com.google.gson.JsonIOException;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.pokegoapi.api.PokemonGo;
 import com.pokegoapi.api.inventory.EggIncubator;
@@ -27,14 +26,12 @@ import com.pokegoapi.api.pokemon.HatchedEgg;
 import com.pokegoapi.api.pokemon.Pokemon;
 import com.pokegoapi.api.pokemon.PokemonMetaRegistry;
 import com.pokegoapi.auth.CredentialProvider;
-import com.pokegoapi.auth.GoogleAuthJson;
-import com.pokegoapi.auth.GoogleAuthTokenJson;
-import com.pokegoapi.auth.GoogleCredentialProvider;
-import com.pokegoapi.auth.GoogleCredentialProvider.OnGoogleLoginOAuthCompleteListener;
+import com.pokegoapi.auth.GoogleUserCredentialProvider;
 import com.pokegoapi.auth.PtcCredentialProvider;
 import com.pokegoapi.exceptions.LoginFailedException;
 import com.pokegoapi.exceptions.RemoteServerException;
 import com.pokegoapi.main.ServerRequest;
+import com.pokegoapi.util.SystemTimeImpl;
 
 import POGOProtos.Enums.PokemonIdOuterClass.PokemonId;
 import POGOProtos.Inventory.Item.ItemIdOuterClass.ItemId;
@@ -127,11 +124,19 @@ public class PokeBot implements Runnable {
 		if (account.getProvider() == EnumProvider.PTC)
 			auth = new PtcCredentialProvider(http, account.getUsername(), account.getPassword());
 		// loggin with google with token to put into url
-		else if (account.getProvider() == EnumProvider.GOOGLE && account.getToken() == null) 
-			auth = new GoogleCredentialProvider(http, new GoogleLoginOAuthCompleteListener());
+		else if (account.getProvider() == EnumProvider.GOOGLE && account.getToken() == null) {
+			auth = new GoogleUserCredentialProvider(http);
+					
+			System.out.println("Please go to " + ((GoogleUserCredentialProvider)auth).LOGIN_URL);
+			System.out.println("Enter authorisation code:");
+					
+			String access = new Scanner(System.in).nextLine();
+			((GoogleUserCredentialProvider)auth).login(access);
+		}
 		// loggin with google refresh token
 		else if (account.getProvider() == EnumProvider.GOOGLE && account.getToken().length() > 0)
-			auth = new GoogleCredentialProvider(http, account.getToken());
+			auth = new GoogleUserCredentialProvider(http, account.getToken(), new SystemTimeImpl());
+		
 
 		go = new PokemonGo(auth, http);
 		cachedLvl = go.getPlayerProfile().getStats().getLevel();
@@ -407,24 +412,5 @@ public class PokeBot implements Runnable {
 
 		}
 		go.setLocation(lat, lon, 0);
-	}
-
-	public class GoogleLoginOAuthCompleteListener implements OnGoogleLoginOAuthCompleteListener {
-
-		@Override
-		public void onInitialOAuthComplete(GoogleAuthJson auth) {
-			logger.log("Waiting for the code " + auth.getUserCode() + " to be put in " + auth.getVerificationUrl());
-		}
-
-		@Override
-		public void onTokenIdReceived(GoogleAuthTokenJson tokens) {
-			account.setToken(tokens.getRefreshToken());
-			try {
-				config.save();
-			} catch (JsonIOException | IOException e) {
-				e.printStackTrace();
-			}
-		}
-
 	}
 }
