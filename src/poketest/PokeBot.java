@@ -78,31 +78,30 @@ public class PokeBot implements Runnable {
 
 	public void run() {
 		int	failedLoginCount = 0;
-		boolean authok = false;
-
-		while(!authok){
-			try {
-				auth();
-				authok = true;
-			} catch (RemoteServerException e) {
-				e.printStackTrace();
-			} catch (LoginFailedException e1) {
-				logger.important("Cant log into account attempt #" + failedLoginCount);
-
-				// if we failed 3 times, wait 10 min
-				if (failedLoginCount == 3) {
-					logger.important("Will sleep 10 minutes to try for login again");
-					try {
-						Thread.sleep(10 * 60 * 1000);
-					} catch (InterruptedException e) { }
-					failedLoginCount = 0;
-				}
-				else
-					failedLoginCount++;
-			}
-		}
-
+		
 		while ( true ) {
+			boolean authok = false;
+			while(!authok){
+				try {
+					auth();
+					authok = true;
+				} catch (RemoteServerException e) {
+					e.printStackTrace();
+				} catch (LoginFailedException e1) {
+					logger.important("Cant log into account attempt #" + failedLoginCount);
+
+					// if we failed 3 times, wait 10 min
+					if (failedLoginCount == 3) {
+						logger.important("Will sleep 10 minutes to try for login again");
+						try {
+							Thread.sleep(10 * 60 * 1000);
+						} catch (InterruptedException e) { }
+						failedLoginCount = 0;
+					}
+					else
+						failedLoginCount++;
+				}
+			}
 			try {
 				MapObjects objects = go.getMap().getMapObjects(config.getMap_radius());
 				getPokestops(objects.getPokestops());
