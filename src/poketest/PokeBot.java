@@ -1,5 +1,9 @@
 package poketest;
 
+import java.awt.Desktop;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -125,12 +129,16 @@ public class PokeBot implements Runnable {
 		// loggin with google with token to put into url
 		else if (account.getProvider() == EnumProvider.GOOGLE && account.getToken() == null) {
 			auth = new GoogleUserCredentialProvider(http);
-					
-			System.out.println("Please go to " + ((GoogleUserCredentialProvider)auth).LOGIN_URL);
-			System.out.println("Enter authorisation code:");
+			
+			try {
+				Desktop.getDesktop().browse(new URI(GoogleUserCredentialProvider.LOGIN_URL));
+			} catch (IOException | URISyntaxException e) {  }
+			
+			logger.important("Enter authorisation code:");
 					
 			String access = new Scanner(System.in).nextLine();
 			((GoogleUserCredentialProvider)auth).login(access);
+			account.setToken(((GoogleUserCredentialProvider)auth).getRefreshToken());
 		}
 		// loggin with google refresh token
 		else if (account.getProvider() == EnumProvider.GOOGLE && account.getToken().length() > 0)
