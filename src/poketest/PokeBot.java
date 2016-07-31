@@ -14,6 +14,7 @@ import java.util.Scanner;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
+import com.google.gson.JsonIOException;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.pokegoapi.api.PokemonGo;
 import com.pokegoapi.api.inventory.EggIncubator;
@@ -136,9 +137,15 @@ public class PokeBot implements Runnable {
 
 			logger.important("Enter authorisation code:");
 
+			@SuppressWarnings("resource")
 			String access = new Scanner(System.in).nextLine();
 			((GoogleUserCredentialProvider)auth).login(access);
 			account.setToken(((GoogleUserCredentialProvider)auth).getRefreshToken());
+			try {
+				config.save();
+			} catch (JsonIOException | IOException e) {
+				e.printStackTrace();
+			}
 		}
 		// loggin with google refresh token
 		else if (account.getProvider() == EnumProvider.GOOGLE && account.getToken().length() > 0)
@@ -157,7 +164,7 @@ public class PokeBot implements Runnable {
 		Map<PokemonId, Pokemon> pokemons = new HashMap<PokemonId, Pokemon>();
 		for(Pokemon pokemon : go.getInventories().getPokebank().getPokemons()) {
 
-			if (pokemon.getFavorite())
+			if (pokemon.isFavorite())
 				continue;
 
 			if (pokemons.containsKey(pokemon.getPokemonId())) {
