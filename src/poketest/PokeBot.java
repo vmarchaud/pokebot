@@ -82,7 +82,7 @@ public class PokeBot implements Runnable {
 
 	public void run() {
 		int	failedLoginCount = 0;
-		
+
 		while ( true ) {
 			boolean authok = false;
 			while(!authok){
@@ -129,13 +129,13 @@ public class PokeBot implements Runnable {
 		// loggin with google with token to put into url
 		else if (account.getProvider() == EnumProvider.GOOGLE && account.getToken() == null) {
 			auth = new GoogleUserCredentialProvider(http);
-			
+
 			try {
 				Desktop.getDesktop().browse(new URI(GoogleUserCredentialProvider.LOGIN_URL));
 			} catch (IOException | URISyntaxException e) {  }
-			
+
 			logger.important("Enter authorisation code:");
-					
+
 			String access = new Scanner(System.in).nextLine();
 			((GoogleUserCredentialProvider)auth).login(access);
 			account.setToken(((GoogleUserCredentialProvider)auth).getRefreshToken());
@@ -143,7 +143,7 @@ public class PokeBot implements Runnable {
 		// loggin with google refresh token
 		else if (account.getProvider() == EnumProvider.GOOGLE && account.getToken().length() > 0)
 			auth = new GoogleUserCredentialProvider(http, account.getToken(), new SystemTimeImpl());
-		
+
 
 		go = new PokemonGo(auth, http);
 		cachedLvl = go.getPlayerProfile().getStats().getLevel();
@@ -157,7 +157,7 @@ public class PokeBot implements Runnable {
 		Map<PokemonId, Pokemon> pokemons = new HashMap<PokemonId, Pokemon>();
 		for(Pokemon pokemon : go.getInventories().getPokebank().getPokemons()) {
 
-			if (pokemon.isFavorite())
+			if (pokemon.getFavorite())
 				continue;
 
 			if (pokemons.containsKey(pokemon.getPokemonId())) {
@@ -332,10 +332,24 @@ public class PokeBot implements Runnable {
 		go.getInventories().getHatchery().getEggs().stream()
 		.filter(egg -> egg.isIncubate())
 		.forEach(egg -> 
-		logger.log(String.format("Egg %s is at %4.3f/%4.3f", Long.toUnsignedString(egg.getId()), egg.getEggKmWalked(), egg.getEggKmWalkedTarget())));
+		{
+			try {
+				logger.log(String.format("Egg %s is at %4.3f/%4.3f", Long.toUnsignedString(egg.getId()), egg.getEggKmWalked(), egg.getEggKmWalkedTarget()));
+			} catch (LoginFailedException | RemoteServerException e) {
+				logger.important("ERROR");
+			}
+		});
 
 		List<EggIncubator> incubators = go.getInventories().getIncubators().stream()
-				.filter(incubator -> !incubator.isInUse())
+				.filter(incubator -> {
+					try {
+						return !incubator.isInUse();
+					} catch (LoginFailedException | RemoteServerException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					return false;
+				})
 				.collect(Collectors.toCollection(ArrayList::new));
 		logger.log("Currently have " + incubators.size() + " incubators available to incube eggs.");
 		if (incubators.size() == 0)
