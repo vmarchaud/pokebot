@@ -252,6 +252,7 @@ public class PokeBot implements Runnable {
 			capturePokemons(go.getMap().getCatchablePokemon());
 
 			logger.log("Pokestop " + cpt + "/" + pokestops.size() + " " + result.getResult() + ", XP: " + result.getExperience());
+			stats.addPokestopVisited();
 
 			if(cpt % 30 == 0) {
 				transfertAllPokermon();

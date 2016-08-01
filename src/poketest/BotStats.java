@@ -7,6 +7,7 @@ public class BotStats {
 	private int pokemonTransfered 	= 0;
 	private int pokemonCatched		= 0;
 	private int pokemonEvolved		= 0;
+	private int pokestopVisited 	= 0;
 	private int lvl;
 	
 	private int[] requiredXP = { 0, 1000, 3000, 6000, 10000, 15000, 21000, 28000, 36000, 45000, 55000, 65000, 75000,
@@ -31,6 +32,7 @@ public class BotStats {
 		logger.important("----STATS----");
 		logger.important(String.format("Account lvl %d : %d/%d (%d%%)", this.lvl, curLevelXP, nextXP, ratio));
 		logger.important("XP Earned: " + (this.currentXp - this.xpStart));
+		logger.important("Pokestop visited: " + this.pokestopVisited);
 		logger.important("Pokemon catched: " + this.pokemonCatched);
 		logger.important("Pokemon transfered: " + this.pokemonTransfered);
 		logger.important("Pokemon evolved: " + this.pokemonEvolved);
@@ -52,5 +54,9 @@ public class BotStats {
 	
 	public int addPokemonEvolved(){
 		return pokemonEvolved++;
+	}
+	
+	public int addPokestopVisited(){
+		return pokestopVisited++;
 	}
 }
