@@ -65,16 +65,10 @@ public class PokeBot implements Runnable {
 	public SecureRandom 	rand = new SecureRandom();
 	private OkHttpClient 	http = new OkHttpClient();
 
-	private int xpEarned = 0;
-	private int pokemonTransfered = 0;
-	private int pokemonCatched = 0;
-	private int pokemonEvolved = 0;
 	private int cachedLvl = 0;
-
-	private int[] requiredXP = { 0, 1000, 3000, 6000, 10000, 15000, 21000, 28000, 36000, 45000, 55000, 65000, 75000,
-			85000, 100000, 120000, 140000, 160000, 185000, 210000, 260000, 335000, 435000, 560000, 710000, 900000, 1100000,
-			1350000, 1650000, 2000000, 2500000, 3000000, 3750000, 4750000, 6000000, 7500000, 9500000, 12000000, 15000000, 20000000 };
-
+	
+	BotStats stats;
+	
 	public PokeBot(Account account, CustomConfig config) {
 		this.account = account;
 		this.config = config;
@@ -108,6 +102,9 @@ public class PokeBot implements Runnable {
 				}
 			}
 			try {
+				if(this.stats == null)
+					this.stats = new BotStats(go.getPlayerProfile().getStats().getExperience(), go.getPlayerProfile().getStats().getLevel());
+				
 				MapObjects objects = go.getMap().getMapObjects(config.getMap_radius());
 				getPokestops(objects.getPokestops());
 			} catch (Exception e) {
@@ -174,7 +171,7 @@ public class PokeBot implements Runnable {
 					logger.log("Transfering pokemon " + pokemons.get(pokemon.getPokemonId()).getPokemonId() + " : " + pokemons.get(pokemon.getPokemonId()).transferPokemon());
 					pokemons.put(pokemon.getPokemonId(), pokemon);
 				}
-				pokemonTransfered++;
+				stats.addPokemonTransfered();
 			}
 			else
 				pokemons.put(pokemon.getPokemonId(), pokemon);
@@ -189,7 +186,7 @@ public class PokeBot implements Runnable {
 				if(!pokemons.containsKey(hightestPokemonId) || pokemons.get(hightestPokemonId).getCp() < pokemon.getCp() * pokemon.getCpMultiplier()){
 					EvolutionResult result = pokemon.evolve();
 					logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + result.getEvolvedPokemon().getPokemonId() + " " + result.getResult());
-					pokemonEvolved++;
+					stats.addPokemonEvolved();
 				}
 			}
 		}
@@ -219,7 +216,7 @@ public class PokeBot implements Runnable {
 					logger.log("	" + respondC.getStatus() + ", " + pokemon.getPokemonId().name() + " using " + ball);
 
 					if (respondC.getStatus() == CatchStatus.CATCH_SUCCESS)
-						pokemonCatched++;
+						stats.addPokemonCatched();
 				}
 				else
 					logger.log("	NO POKEBALL for " + pokemon.getPokemonId().name());
@@ -255,13 +252,12 @@ public class PokeBot implements Runnable {
 			capturePokemons(go.getMap().getCatchablePokemon());
 
 			logger.log("Pokestop " + cpt + "/" + pokestops.size() + " " + result.getResult() + ", XP: " + result.getExperience());
-			xpEarned += result.getExperience();
 
 			if(cpt % 30 == 0) {
 				transfertAllPokermon();
 			}
 			if (cpt % 10 == 0) {
-				showStats();
+				stats.showStats(logger, go.getPlayerProfile().getStats().getLevel(), go.getPlayerProfile().getStats().getExperience());
 				deleteUselessitem();
 				manageEggs();
 				if (go.getPlayerProfile().getStats().getLevel() != cachedLvl)
@@ -294,7 +290,6 @@ public class PokeBot implements Runnable {
 		try {
 			xpBoostResponse = UseIncenseResponse.parseFrom(request.getData());
 		} catch (InvalidProtocolBufferException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
@@ -343,7 +338,7 @@ public class PokeBot implements Runnable {
 			try {
 				logger.log(String.format("Egg %s is at %4.3f/%4.3f", Long.toUnsignedString(egg.getId()), egg.getEggKmWalked(), egg.getEggKmWalkedTarget()));
 			} catch (LoginFailedException | RemoteServerException e) {
-				logger.important("ERROR");
+				e.printStackTrace();
 			}
 		});
 
@@ -352,7 +347,6 @@ public class PokeBot implements Runnable {
 					try {
 						return !incubator.isInUse();
 					} catch (LoginFailedException | RemoteServerException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 					return false;
@@ -376,23 +370,6 @@ public class PokeBot implements Runnable {
 			UseItemEggIncubatorResponse.Result result = incubators.get(i).hatchEgg(eggs.get(i));
 			logger.log("Trying to put an egg " + eggs.get(i).getEggKmWalkedTarget()  + " into the incubators result : " + result);
 		}
-	}
-
-	public void showStats() throws LoginFailedException, RemoteServerException {
-		go.getPlayerProfile().updateProfile();
-
-		int lvl = go.getPlayerProfile().getStats().getLevel();
-		int nextXP = requiredXP[lvl] - requiredXP[lvl - 1];
-		int curLevelXP = (int)go.getPlayerProfile().getStats().getExperience() - requiredXP[lvl - 1];
-		int ratio = (int) ((double)curLevelXP / (double)nextXP * 100.0);
-
-		logger.important("----STATS----");
-		logger.important(String.format("Account lvl %d : %d/%d (%d%%)", lvl, curLevelXP, nextXP, ratio));
-		logger.important("XP Earned: " + xpEarned);
-		logger.important("Pokemon catched: " + pokemonCatched);
-		logger.important("Pokemon transfered: " + pokemonTransfered);
-		logger.important("Pokemon evolved: " + pokemonEvolved);
-		logger.important("--------------");
 	}
 
 	public void getBadges() throws LoginFailedException, RemoteServerException{
