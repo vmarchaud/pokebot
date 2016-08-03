@@ -84,7 +84,7 @@ public class PokeBot implements Runnable {
 		Timer t = new Timer(); 
         GregorianCalendar gc = new GregorianCalendar(); 
         gc.add(Calendar.SECOND, 10); 
-        t.scheduleAtFixedRate(this.stats, gc.getTime(), showStatTime);
+        t.scheduleAtFixedRate(this.stats, gc.getTime(), config.getStatsTimer() * 1000);
 	}
 
 	public void run() {

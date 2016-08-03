@@ -16,6 +16,7 @@ public class CustomConfig {
 	private List<Location>	spawns;
 	private int				speed;
 	private int				map_radius;
+	private int				stats_timer;
 
 	private transient static Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
 	
@@ -33,6 +34,10 @@ public class CustomConfig {
 
 	public int getMap_radius() {
 		return map_radius;
+	}
+
+	public int getStatsTimer() {
+		return stats_timer;
 	}
 	
 	public static CustomConfig load() throws IOException {
