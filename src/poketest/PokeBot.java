@@ -48,6 +48,7 @@ import POGOProtos.Networking.Requests.Messages.UseIncenseMessageOuterClass.UseIn
 import POGOProtos.Networking.Requests.Messages.UseItemXpBoostMessageOuterClass.UseItemXpBoostMessage;
 import POGOProtos.Networking.Responses.CatchPokemonResponseOuterClass.CatchPokemonResponse.CatchStatus;
 import POGOProtos.Networking.Responses.EncounterResponseOuterClass.EncounterResponse.Status;
+import POGOProtos.Networking.Responses.FortSearchResponseOuterClass.FortSearchResponse.Result;
 import POGOProtos.Networking.Responses.LevelUpRewardsResponseOuterClass.LevelUpRewardsResponse;
 import POGOProtos.Networking.Responses.UseIncenseResponseOuterClass.UseIncenseResponse;
 import POGOProtos.Networking.Responses.UseItemEggIncubatorResponseOuterClass.UseItemEggIncubatorResponse;
@@ -248,10 +249,16 @@ public class PokeBot implements Runnable {
 			if (!pokestop.canLoot())
 				run(pokestop.getLatitude(), pokestop.getLongitude());
 
-			PokestopLootResult result = pokestop.loot();
+			int tryPokestop = 0;
+			PokestopLootResult result = null;
+			do{
+				tryPokestop++;
+				result = pokestop.loot();
+			}while(result.getResult() == Result.SUCCESS && result.getExperience() == 0);
+			
 			capturePokemons(go.getMap().getCatchablePokemon());
 
-			logger.log("Pokestop " + cpt + "/" + pokestops.size() + " " + result.getResult() + ", XP: " + result.getExperience());
+			logger.log("Pokestop " + cpt + "/" + pokestops.size() + " " + result.getResult() + ", XP: " + result.getExperience() + ", try: " + tryPokestop);
 			stats.addPokestopVisited();
 
 			if(cpt % 30 == 0) {
