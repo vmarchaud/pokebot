@@ -60,7 +60,7 @@ import okhttp3.OkHttpClient;
 import poketest.Account.EnumProvider;
 
 public class PokeBot implements Runnable {
-	
+
 	static final int showStatTime = 60000;
 
 	private PokemonGo		go;
@@ -72,19 +72,19 @@ public class PokeBot implements Runnable {
 	private OkHttpClient 	http = new OkHttpClient();
 
 	private int cachedLvl = 0;
-	
+
 	private BotStats stats;
-	
+
 	public PokeBot(Account account, CustomConfig config) {
 		this.account = account;
 		this.config = config;
 		this.logger = new CustomLogger(account);
 		this.stats = new BotStats(logger);
-		
+
 		Timer t = new Timer(); 
-        GregorianCalendar gc = new GregorianCalendar(); 
-        gc.add(Calendar.SECOND, 10); 
-        t.scheduleAtFixedRate(this.stats, gc.getTime(), config.getStatsTimer() * 1000);
+		GregorianCalendar gc = new GregorianCalendar(); 
+		gc.add(Calendar.SECOND, 10); 
+		t.scheduleAtFixedRate(this.stats, gc.getTime(), config.getStatsTimer() * 1000);
 	}
 
 	public void run() {
@@ -114,8 +114,13 @@ public class PokeBot implements Runnable {
 				}
 			}
 			try {
+				Thread.currentThread().setName("Thread-" + account.getUsername());
+
+				if(stats.getXpStart() == 0)
+					stats.setXpStart(go.getPlayerProfile().getStats().getExperience());
+
 				stats.updateStat(go.getPlayerProfile().getStats().getLevel(), go.getPlayerProfile().getStats().getExperience());
-				
+
 				MapObjects objects = go.getMap().getMapObjects(config.getMap_radius());
 				getPokestops(objects.getPokestops());
 			} catch (Exception e) {
@@ -265,13 +270,14 @@ public class PokeBot implements Runnable {
 				tryPokestop++;
 				result = pokestop.loot();
 			}while(result.getResult() == Result.SUCCESS && result.getExperience() == 0);
-			
+
 			capturePokemons(go.getMap().getCatchablePokemon());
 
 			logger.log("Pokestop " + cpt + "/" + pokestops.size() + " " + result.getResult() + ", XP: " + result.getExperience() + ", try: " + tryPokestop);
 			stats.addPokestopVisited();
 
 			if(cpt % 30 == 0) {
+				evolveUselessPokemon();
 				transfertAllPokermon();
 			}
 			if (cpt % 10 == 0) {
@@ -280,7 +286,7 @@ public class PokeBot implements Runnable {
 				if (go.getPlayerProfile().getStats().getLevel() != cachedLvl)
 					getRewards(++cachedLvl);
 			}
-			
+
 			stats.updateStat(go.getPlayerProfile().getStats().getLevel(), go.getPlayerProfile().getStats().getExperience());
 		}
 	}
@@ -412,6 +418,27 @@ public class PokeBot implements Runnable {
 
 		logger.log("Getting award for lvl " + (cachedLvl) + " with result : " + response.getResult());
 
+	}
+
+	public void evolveUselessPokemon() throws LoginFailedException, RemoteServerException{
+		List<PokemonId> uselessPokemonId = new ArrayList<PokemonId>();
+		uselessPokemonId.add(PokemonId.RATTATA);
+		uselessPokemonId.add(PokemonId.PIDGEY);
+		uselessPokemonId.add(PokemonId.SPEAROW);
+		uselessPokemonId.add(PokemonId.ZUBAT);
+
+		for(PokemonId pokeid : uselessPokemonId){
+			go.getInventories().getPokebank().getPokemonByPokemonId(pokeid).stream().forEach(pokemon -> 
+			{
+				try {
+					EvolutionResult result = pokemon.evolve();
+					logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + result.getEvolvedPokemon().getPokemonId() + " " + result.getResult());
+					stats.addPokemonEvolved();
+				} catch (LoginFailedException | RemoteServerException e) {
+					e.printStackTrace();
+				}
+			});
+		}
 	}
 
 	public void run(double lat, double lon) throws LoginFailedException, RemoteServerException{

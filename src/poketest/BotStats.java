@@ -51,7 +51,7 @@ public class BotStats extends TimerTask{
 		logger.important("Pokemon transfered: " + this.pokemonTransfered);
 		logger.important("Pokemon evolved: " + this.pokemonEvolved);
 		logger.important("XP per hour: " + this.xpPerHour);
-		logger.important("--------------");
+		logger.important("-------------");
 	}
 	
 	public void showStats(int lvl, long xp) {
@@ -73,6 +73,14 @@ public class BotStats extends TimerTask{
 	
 	public int addPokestopVisited(){
 		return pokestopVisited++;
+	}
+	
+	public void setXpStart(long xpStart) {
+		this.xpStart = xpStart;
+	}
+	
+	public long getXpStart() {
+		return xpStart;
 	}
 
 	@Override
