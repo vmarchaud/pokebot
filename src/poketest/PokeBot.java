@@ -6,11 +6,14 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.Timer;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
@@ -48,6 +51,7 @@ import POGOProtos.Networking.Requests.Messages.UseIncenseMessageOuterClass.UseIn
 import POGOProtos.Networking.Requests.Messages.UseItemXpBoostMessageOuterClass.UseItemXpBoostMessage;
 import POGOProtos.Networking.Responses.CatchPokemonResponseOuterClass.CatchPokemonResponse.CatchStatus;
 import POGOProtos.Networking.Responses.EncounterResponseOuterClass.EncounterResponse.Status;
+import POGOProtos.Networking.Responses.FortSearchResponseOuterClass.FortSearchResponse.Result;
 import POGOProtos.Networking.Responses.LevelUpRewardsResponseOuterClass.LevelUpRewardsResponse;
 import POGOProtos.Networking.Responses.UseIncenseResponseOuterClass.UseIncenseResponse;
 import POGOProtos.Networking.Responses.UseItemEggIncubatorResponseOuterClass.UseItemEggIncubatorResponse;
@@ -56,6 +60,8 @@ import okhttp3.OkHttpClient;
 import poketest.Account.EnumProvider;
 
 public class PokeBot implements Runnable {
+	
+	static final int showStatTime = 60000;
 
 	private PokemonGo		go;
 	private Account 		account;
@@ -67,12 +73,18 @@ public class PokeBot implements Runnable {
 
 	private int cachedLvl = 0;
 	
-	BotStats stats;
+	private BotStats stats;
 	
 	public PokeBot(Account account, CustomConfig config) {
 		this.account = account;
 		this.config = config;
 		this.logger = new CustomLogger(account);
+		this.stats = new BotStats(logger);
+		
+		Timer t = new Timer(); 
+        GregorianCalendar gc = new GregorianCalendar(); 
+        gc.add(Calendar.SECOND, 10); 
+        t.scheduleAtFixedRate(this.stats, gc.getTime(), config.getStatsTimer() * 1000);
 	}
 
 	public void run() {
@@ -102,8 +114,7 @@ public class PokeBot implements Runnable {
 				}
 			}
 			try {
-				if(this.stats == null)
-					this.stats = new BotStats(go.getPlayerProfile().getStats().getExperience(), go.getPlayerProfile().getStats().getLevel());
+				stats.updateStat(go.getPlayerProfile().getStats().getLevel(), go.getPlayerProfile().getStats().getExperience());
 				
 				MapObjects objects = go.getMap().getMapObjects(config.getMap_radius());
 				getPokestops(objects.getPokestops());
@@ -248,22 +259,29 @@ public class PokeBot implements Runnable {
 			if (!pokestop.canLoot())
 				run(pokestop.getLatitude(), pokestop.getLongitude());
 
-			PokestopLootResult result = pokestop.loot();
+			int tryPokestop = 0;
+			PokestopLootResult result = null;
+			do{
+				tryPokestop++;
+				result = pokestop.loot();
+			}while(result.getResult() == Result.SUCCESS && result.getExperience() == 0);
+			
 			capturePokemons(go.getMap().getCatchablePokemon());
 
-			logger.log("Pokestop " + cpt + "/" + pokestops.size() + " " + result.getResult() + ", XP: " + result.getExperience());
+			logger.log("Pokestop " + cpt + "/" + pokestops.size() + " " + result.getResult() + ", XP: " + result.getExperience() + ", try: " + tryPokestop);
 			stats.addPokestopVisited();
 
 			if(cpt % 30 == 0) {
 				transfertAllPokermon();
 			}
 			if (cpt % 10 == 0) {
-				stats.showStats(logger, go.getPlayerProfile().getStats().getLevel(), go.getPlayerProfile().getStats().getExperience());
 				deleteUselessitem();
 				manageEggs();
 				if (go.getPlayerProfile().getStats().getLevel() != cachedLvl)
 					getRewards(++cachedLvl);
 			}
+			
+			stats.updateStat(go.getPlayerProfile().getStats().getLevel(), go.getPlayerProfile().getStats().getExperience());
 		}
 	}
 
