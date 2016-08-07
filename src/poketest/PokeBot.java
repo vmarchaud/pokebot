@@ -428,16 +428,14 @@ public class PokeBot implements Runnable {
 		uselessPokemonId.add(PokemonId.ZUBAT);
 
 		for(PokemonId pokeid : uselessPokemonId){
-			go.getInventories().getPokebank().getPokemonByPokemonId(pokeid).stream().forEach(pokemon -> 
+			for(Pokemon pokemon : go.getInventories().getPokebank().getPokemonByPokemonId(pokeid))
 			{
-				try {
+				if(go.getInventories().getCandyjar().getCandies(pokemon.getPokemonFamily()) > PokemonMetaRegistry.getMeta(pokemon.getPokemonId()).getCandyToEvolve()) {
 					EvolutionResult result = pokemon.evolve();
 					logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + result.getEvolvedPokemon().getPokemonId() + " " + result.getResult());
 					stats.addPokemonEvolved();
-				} catch (LoginFailedException | RemoteServerException e) {
-					e.printStackTrace();
 				}
-			});
+			}
 		}
 	}
 
