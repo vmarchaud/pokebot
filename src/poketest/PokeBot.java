@@ -383,7 +383,7 @@ public class PokeBot implements Runnable {
 
 		List<EggPokemon> eggs = go.getInventories().getHatchery().getEggs().stream()
 				.filter(egg -> egg.getEggIncubatorId() == null || egg.getEggIncubatorId().length() == 0)
-				.sorted((left, right) -> Double.compare(left.getEggKmWalkedTarget(), right.getEggKmWalkedTarget()))
+				.sorted((left, right) -> Double.compare(right.getEggKmWalkedTarget(), left.getEggKmWalkedTarget()))
 				.collect(Collectors.toCollection(ArrayList::new));
 		logger.log("Currently have " + eggs.size() + "eggs available to be incubate.");
 		if (eggs.size() == 0)
@@ -428,8 +428,7 @@ public class PokeBot implements Runnable {
 		uselessPokemonId.add(PokemonId.ZUBAT);
 
 		for(PokemonId pokeid : uselessPokemonId){
-			for(Pokemon pokemon : go.getInventories().getPokebank().getPokemonByPokemonId(pokeid))
-			{
+			for(Pokemon pokemon : go.getInventories().getPokebank().getPokemonByPokemonId(pokeid)){
 				if(go.getInventories().getCandyjar().getCandies(pokemon.getPokemonFamily()) > PokemonMetaRegistry.getMeta(pokemon.getPokemonId()).getCandyToEvolve()) {
 					EvolutionResult result = pokemon.evolve();
 					logger.log("Evolving pokemon " + pokemon.getPokemonId() + " into " + result.getEvolvedPokemon().getPokemonId() + " " + result.getResult());

@@ -85,6 +85,6 @@ public class BotStats extends TimerTask{
 
 	@Override
 	public void run() {
-		showStats();
+		showStats(this.lvl, this.currentXp);
 	}
 }
