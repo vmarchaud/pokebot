@@ -32,6 +32,6 @@
     }
   ],
   "speed": 25,
-  "map_radius": 3
+  "map_radius": 3,
   "stats_timer": 60
 }
